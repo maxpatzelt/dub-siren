@@ -4,6 +4,7 @@
 #include "DSP/DubOscillator.h"
 #include "DSP/LFO.h"
 #include "DSP/DubDelay.h"
+#include "DSP/Envelope.h"
 
 /**
  * Dub Siren VST Processor
@@ -76,6 +77,7 @@ private:
     SimpleSynth::DSP::LFO lfo1_;
     SimpleSynth::DSP::LFO lfo2_;
     SimpleSynth::DSP::DubDelay dubDelay_;
+    SimpleSynth::DSP::Envelope envelope_;
 
     // Parameter management
     juce::AudioProcessorValueTreeState parameters_;

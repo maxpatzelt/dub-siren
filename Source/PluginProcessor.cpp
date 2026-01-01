@@ -131,6 +131,7 @@ void SimpleSynthProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     lfo1_.Init(static_cast<float>(sampleRate));
     lfo2_.Init(static_cast<float>(sampleRate));
     dubDelay_.Init(static_cast<float>(sampleRate), 2.0f);
+    envelope_.Init(static_cast<float>(sampleRate));
 
     updateDSPFromParameters();
 }
@@ -241,19 +242,22 @@ void SimpleSynthProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                 currentMidiNote_ = msg.getNoteNumber();
                 isNoteOn_ = true;
                 currentNoteVelocity_ = msg.getFloatVelocity();
-                // set oscillator frequency and optionally reset phase
+                // set oscillator frequency
                 float freq = SimpleSynth::DSP::MidiNoteToFrequency(currentMidiNote_);
                 dubOscillator_.SetFrequency(freq);
-                // scale level by velocity
+                // scale base level by velocity (final amplitude will be multiplied by envelope)
                 float baseLevel = parameters_.getRawParameterValue("vcoLevel")->load();
                 dubOscillator_.SetLevel(baseLevel * currentNoteVelocity_);
+                // trigger envelope
+                envelope_.NoteOn();
             }
             else if (msg.isNoteOff() || (msg.isNoteOn() && msg.getVelocity() == 0)) {
                 int note = msg.getNoteNumber();
-                if (note == currentMidiNote_)
-                {
-                    isNoteOn_ = false;
+                if (note == currentMidiNote_) {
+                    isNoteOn_ = false; // note state
                     currentMidiNote_ = -1;
+                    // release envelope (allow smooth release tail)
+                    envelope_.NoteOff();
                 }
             }
 
@@ -261,8 +265,12 @@ void SimpleSynthProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         }
 
         float outSample = 0.0f;
-        if (isNoteOn_) {
-            outSample = dubOscillator_.ProcessSample();
+        // Process envelope per-sample
+        float envVal = envelope_.ProcessSample();
+
+        // Only generate oscillator while envelope is active (attack/sustain/decay/release)
+        if (envVal > 0.0f) {
+            outSample = dubOscillator_.ProcessSample() * envVal;
         }
 
         outputData[i] = outSample;
