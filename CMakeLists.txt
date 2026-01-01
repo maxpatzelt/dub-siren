@@ -1,0 +1,83 @@
+cmake_minimum_required(VERSION 3.15)
+
+project(SimpleSynth VERSION 0.1.0)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Add JUCE as subdirectory - assumes JUCE is in libs/JUCE
+# Clone with: git submodule add https://github.com/juce-framework/JUCE.git libs/JUCE
+# Or use FetchContent to download automatically (see README)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/libs/JUCE/CMakeLists.txt")
+    add_subdirectory(libs/JUCE)
+else()
+    message(FATAL_ERROR
+        "JUCE not found! Please run:\n"
+        "  git submodule add https://github.com/juce-framework/JUCE.git libs/JUCE\n"
+        "  git submodule update --init --recursive\n"
+        "Or see README.md for FetchContent alternative.")
+endif()
+
+# Create the plugin target
+juce_add_plugin(SimpleSynth
+    COMPANY_NAME "YourCompany"
+    PLUGIN_MANUFACTURER_CODE Manu
+    PLUGIN_CODE Syn1
+    FORMATS VST3
+    PRODUCT_NAME "Simple Synth"
+    IS_SYNTH TRUE
+    NEEDS_MIDI_INPUT TRUE
+    NEEDS_MIDI_OUTPUT FALSE
+    IS_MIDI_EFFECT FALSE
+    EDITOR_WANTS_KEYBOARD_FOCUS FALSE
+    COPY_PLUGIN_AFTER_BUILD FALSE
+    VST2_CATEGORY kPlugSynthInstrument)
+
+# Add source files
+target_sources(SimpleSynth
+    PRIVATE
+        Source/PluginProcessor.cpp
+        Source/PluginProcessor.h
+        Source/PluginEditor.cpp
+        Source/PluginEditor.h
+        Source/DSP/Oscillator.cpp
+        Source/DSP/Oscillator.h
+        Source/DSP/Envelope.cpp
+        Source/DSP/Envelope.h
+        Source/DSP/Voice.cpp
+        Source/DSP/Voice.h
+        Source/DSP/DubOscillator.cpp
+        Source/DSP/DubOscillator.h
+        Source/DSP/LFO.cpp
+        Source/DSP/LFO.h
+        Source/DSP/DubDelay.cpp
+        Source/DSP/DubDelay.h
+        Source/DSP/Common.h)
+
+# Compile definitions
+target_compile_definitions(SimpleSynth
+    PUBLIC
+        JUCE_VST3_CAN_REPLACE_VST2=0)
+
+# Set C++17 and enable warnings
+target_compile_features(SimpleSynth PRIVATE cxx_std_17)
+
+if(MSVC)
+    target_compile_options(SimpleSynth PRIVATE /W4)
+else()
+    target_compile_options(SimpleSynth PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+# Link JUCE modules
+target_link_libraries(SimpleSynth
+    PRIVATE
+        juce::juce_audio_utils
+        juce::juce_dsp
+    PUBLIC
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_lto_flags
+        juce::juce_recommended_warning_flags)
+
+# Enable testing
+enable_testing()
+add_subdirectory(Tests)
