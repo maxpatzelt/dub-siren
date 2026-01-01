@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
-project(SimpleSynth VERSION 0.1.0)
+project(DubSiren VERSION 0.1.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -19,12 +19,12 @@ else()
 endif()
 
 # Create the plugin target
-juce_add_plugin(SimpleSynth
+juce_add_plugin(DubSiren
     COMPANY_NAME "YourCompany"
     PLUGIN_MANUFACTURER_CODE Manu
     PLUGIN_CODE Syn1
     FORMATS VST3
-    PRODUCT_NAME "Simple Synth"
+    PRODUCT_NAME "Dub Siren"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -34,7 +34,7 @@ juce_add_plugin(SimpleSynth
     VST2_CATEGORY kPlugSynthInstrument)
 
 # Add source files
-target_sources(SimpleSynth
+target_sources(DubSiren
     PRIVATE
         Source/PluginProcessor.cpp
         Source/PluginProcessor.h
@@ -55,21 +55,21 @@ target_sources(SimpleSynth
         Source/DSP/Common.h)
 
 # Compile definitions
-target_compile_definitions(SimpleSynth
+target_compile_definitions(DubSiren
     PUBLIC
         JUCE_VST3_CAN_REPLACE_VST2=0)
 
 # Set C++17 and enable warnings
-target_compile_features(SimpleSynth PRIVATE cxx_std_17)
+target_compile_features(DubSiren PRIVATE cxx_std_17)
 
 if(MSVC)
-    target_compile_options(SimpleSynth PRIVATE /W4)
+    target_compile_options(DubSiren PRIVATE /W4)
 else()
-    target_compile_options(SimpleSynth PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(DubSiren PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
 # Link JUCE modules
-target_link_libraries(SimpleSynth
+target_link_libraries(DubSiren
     PRIVATE
         juce::juce_audio_utils
         juce::juce_dsp
