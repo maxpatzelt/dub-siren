@@ -215,8 +215,7 @@ void SimpleSynthProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                                         juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
-    juce::ignoreUnused(midiMessages);
-
+    // Prepare
     auto totalNumOutputChannels = getTotalNumOutputChannels();
 
     // Clear output
@@ -225,13 +224,51 @@ void SimpleSynthProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     const int numSamples = buffer.getNumSamples();
     float* outputData = buffer.getWritePointer(0);
 
-    // Update DSP with current parameter values
+    // Update static DSP params (LFOs/Delay) before sample loop
     updateDSPFromParameters();
 
-    // Generate VCO audio
-    dubOscillator_.Process(outputData, static_cast<size_t>(numSamples));
+    // Iterate MIDI events with timing and render sample-by-sample so synth only
+    // produces audio while a MIDI note is held.
+    juce::MidiBuffer::Iterator it(midiMessages);
+    juce::MidiMessage msg;
+    int samplePos;
+    bool hasMsg = it.getNextEvent(msg, samplePos);
 
-    // Apply delay effect
+    for (int i = 0; i < numSamples; ++i) {
+        // process all messages that occur at this sample
+        while (hasMsg && samplePos == i) {
+            if (msg.isNoteOn()) {
+                currentMidiNote_ = msg.getNoteNumber();
+                isNoteOn_ = true;
+                currentNoteVelocity_ = msg.getFloatVelocity();
+                // set oscillator frequency and optionally reset phase
+                float freq = SimpleSynth::DSP::MidiNoteToFrequency(currentMidiNote_);
+                dubOscillator_.SetFrequency(freq);
+                // scale level by velocity
+                float baseLevel = parameters_.getRawParameterValue("vcoLevel")->load();
+                dubOscillator_.SetLevel(baseLevel * currentNoteVelocity_);
+            }
+            else if (msg.isNoteOff() || (msg.isNoteOn() && msg.getVelocity() == 0)) {
+                int note = msg.getNoteNumber();
+                if (note == currentMidiNote_)
+                {
+                    isNoteOn_ = false;
+                    currentMidiNote_ = -1;
+                }
+            }
+
+            hasMsg = it.getNextEvent(msg, samplePos);
+        }
+
+        float outSample = 0.0f;
+        if (isNoteOn_) {
+            outSample = dubOscillator_.ProcessSample();
+        }
+
+        outputData[i] = outSample;
+    }
+
+    // Apply delay effect to the generated audio (delay will produce tails)
     dubDelay_.Process(outputData, static_cast<size_t>(numSamples));
 }
 

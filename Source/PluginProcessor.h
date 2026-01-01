@@ -80,6 +80,11 @@ private:
     // Parameter management
     juce::AudioProcessorValueTreeState parameters_;
 
+    // MIDI state
+    int currentMidiNote_ = -1;
+    bool isNoteOn_ = false;
+    float currentNoteVelocity_ = 1.0f;
+
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SimpleSynthProcessor)
