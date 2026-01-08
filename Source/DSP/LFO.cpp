@@ -22,7 +22,7 @@ void LFO::Init(float sampleRate) {
 }
 
 void LFO::SetRate(float rateHz) {
-    rate_ = Clamp(rateHz, 0.01f, 20.0f); // LFO range 0.01Hz to 20Hz
+    rate_ = Clamp(rateHz, 0.01f, 80.0f); // LFO range 0.01Hz to 80Hz
     phaseIncrement_ = rate_ / sampleRate_;
 }
 

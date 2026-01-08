@@ -1,5 +1,6 @@
-﻿#include "PluginEditor.h"
+#include "PluginEditor.h"
 #include "PluginProcessor.h"
+#include <BinaryData.h>
 
 //==============================================================================
 SimpleSynthEditor::SimpleSynthEditor(SimpleSynthProcessor& p)
@@ -59,59 +60,61 @@ SimpleSynthEditor::SimpleSynthEditor(SimpleSynthProcessor& p)
     lfo1TargetAttach = std::make_unique<ChoiceAttachment>(processorRef.getParameters(), "lfo1Target", lfo1TargetBox);
     lfo2TargetAttach = std::make_unique<ChoiceAttachment>(processorRef.getParameters(), "lfo2Target", lfo2TargetBox);
 
-    setSize(800, 360);
+    // Load the panel background image
+    panelImage = juce::ImageCache::getFromMemory(BinaryData::panel_jpg, BinaryData::panel_jpgSize);
+
+    setSize(800, 600);
 }
 
 SimpleSynthEditor::~SimpleSynthEditor() = default;
 
 void SimpleSynthEditor::paint(juce::Graphics& g)
 {
-    auto area = getLocalBounds().toFloat();
-
-    juce::ColourGradient grad(juce::Colours::red, 0.0f, 0.0f,
-                              juce::Colours::yellow, 0.0f, area.getHeight() * 0.5f, false);
-    grad.addColour(1.0, juce::Colours::green);
-    g.setGradientFill(grad);
-    g.fillAll();
-
-    for (int i = 0; i < 16; ++i)
+    // Draw the panel background image
+    if (panelImage.isValid())
     {
-        float x = (float) (std::sin(i * 13.0) * 0.5 + 0.5) * area.getWidth();
-        float y = (float) (std::cos(i * 7.0) * 0.5 + 0.5) * area.getHeight();
-        float r = 8.0f + (i % 5) * 6.0f;
-        juce::Colour c = juce::Colour::fromHSV((i * 0.07f), 0.9f, 0.9f, 0.35f);
-        g.setColour(c);
-        g.fillEllipse(x - r * 0.5f, y - r * 0.5f, r, r);
+        g.drawImage(panelImage, getLocalBounds().toFloat(),
+                    juce::RectanglePlacement::fillDestination);
     }
-
-    g.setColour(juce::Colours::black.withAlpha(0.9f));
-    g.setFont(juce::Font(26.0f, juce::Font::bold));
-    g.drawText("Dub Siren", 10, 8, getWidth() - 20, 34, juce::Justification::centred);
+    else
+    {
+        // Bright magenta background to show image didn't load
+        g.fillAll(juce::Colours::magenta);
+        g.setColour(juce::Colours::white);
+        g.setFont(24.0f);
+        g.drawText("PANEL IMAGE NOT LOADED", getLocalBounds(), juce::Justification::centred);
+    }
 }
 
 void SimpleSynthEditor::resized()
 {
-    auto r = getLocalBounds().reduced(12);
+    auto bounds = getLocalBounds();
+    int w = bounds.getWidth();
+    int h = bounds.getHeight();
 
-    auto top = r.removeFromTop(48);
+    // Map digital knobs to physical knob positions in panel image
+    // Panel has knobs arranged in rows - adjusting for 800x600 window
 
-    auto row = r.removeFromTop(140);
-    int colWidth = row.getWidth() / 5;
+    int knobSize = 90;
 
-    vcoRateSlider.setBounds(row.removeFromLeft(colWidth).reduced(8));
-    vcoLevelSlider.setBounds(row.removeFromLeft(colWidth).reduced(8));
-    delayTimeSlider.setBounds(row.removeFromLeft(colWidth).reduced(8));
-    delayFeedbackSlider.setBounds(row.removeFromLeft(colWidth).reduced(8));
-    delayWetDrySlider.setBounds(row.removeFromLeft(colWidth).reduced(8));
+    // Top row - 3 knobs (left, center-left, right)
+    vcoRateSlider.setBounds(50, 80, knobSize, knobSize);           // Top left
+    vcoLevelSlider.setBounds(240, 80, knobSize, knobSize);         // Top center-left
+    delayTimeSlider.setBounds(580, 80, knobSize, knobSize);        // Top right
 
-    auto row2 = r.removeFromTop(140);
-    int col2 = row2.getWidth() / 5;
+    // Middle row - 2 knobs
+    delayFeedbackSlider.setBounds(120, 240, knobSize, knobSize);   // Middle left
+    delayWetDrySlider.setBounds(520, 240, knobSize, knobSize);     // Middle right
 
-    lfo1RateSlider.setBounds(row2.removeFromLeft(col2).reduced(8));
-    lfo1AmountSlider.setBounds(row2.removeFromLeft(col2).reduced(8));
-    lfo1TargetBox.setBounds(row2.removeFromLeft(col2).reduced(24));
-    lfo2RateSlider.setBounds(row2.removeFromLeft(col2).reduced(8));
-    lfo2AmountSlider.setBounds(row2.removeFromLeft(col2).reduced(8));
+    // Bottom row - left side 2 knobs
+    lfo1RateSlider.setBounds(80, 400, knobSize, knobSize);         // Bottom left-top
+    lfo1AmountSlider.setBounds(80, 490, knobSize, knobSize);       // Bottom left-bottom
 
-    lfo2TargetBox.setBounds(getWidth() - col2 - 24, row2.getY() + row2.getHeight() - 40, col2 - 16, 32);
+    // Bottom row - right side 2 knobs + 1 box
+    lfo2RateSlider.setBounds(540, 400, knobSize, knobSize);        // Bottom right-top
+    lfo2AmountSlider.setBounds(540, 490, knobSize, knobSize);      // Bottom right-bottom
+
+    // ComboBoxes in available space
+    lfo1TargetBox.setBounds(280, 420, 180, 30);                    // Center area
+    lfo2TargetBox.setBounds(280, 480, 180, 30);                    // Center area
 }

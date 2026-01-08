@@ -31,7 +31,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout SimpleSynthProcessor::create
     // LFO 1 Parameters
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         "lfo1Rate", "LFO 1 Rate",
-        juce::NormalisableRange<float>(0.01f, 20.0f, 0.01f, 0.3f), 2.0f));
+        juce::NormalisableRange<float>(0.01f, 80.0f, 0.01f, 0.3f), 2.0f));
 
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         "lfo1Amount", "LFO 1 Amount",
@@ -44,7 +44,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout SimpleSynthProcessor::create
     // LFO 2 Parameters
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         "lfo2Rate", "LFO 2 Rate",
-        juce::NormalisableRange<float>(0.01f, 20.0f, 0.01f, 0.3f), 0.5f));
+        juce::NormalisableRange<float>(0.01f, 80.0f, 0.01f, 0.3f), 0.5f));
 
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         "lfo2Amount", "LFO 2 Amount",
@@ -176,7 +176,7 @@ void SimpleSynthProcessor::updateDSPFromParameters()
 
     if (lfo2Target == LFO2Target::LFO1Rate) {
         float modulatedLFO1Rate = lfo1Rate * (1.0f + lfo2Mod * 2.0f);
-        lfo1Rate = juce::jlimit(0.01f, 20.0f, modulatedLFO1Rate);
+        lfo1Rate = juce::jlimit(0.01f, 80.0f, modulatedLFO1Rate);
     } else if (lfo2Target == LFO2Target::LFO1Amount) {
         lfo1Amount = juce::jlimit(0.0f, 1.0f, lfo1Amount + lfo2Mod * 0.5f);
     } else if (lfo2Target == LFO2Target::DelayWetDry) {

@@ -33,6 +33,11 @@ juce_add_plugin(DubSiren
     COPY_PLUGIN_AFTER_BUILD FALSE
     VST2_CATEGORY kPlugSynthInstrument)
 
+# Add binary resources (panel image)
+juce_add_binary_data(DubSirenResources
+    SOURCES
+        Resources/panel.jpg)
+
 # Add source files
 target_sources(DubSiren
     PRIVATE
@@ -73,6 +78,7 @@ target_link_libraries(DubSiren
     PRIVATE
         juce::juce_audio_utils
         juce::juce_dsp
+        DubSirenResources
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags

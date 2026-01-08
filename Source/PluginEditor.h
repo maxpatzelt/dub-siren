@@ -34,6 +34,9 @@ private:
 
     std::unique_ptr<ChoiceAttachment> lfo1TargetAttach, lfo2TargetAttach;
 
+    // Background panel image
+    juce::Image panelImage;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SimpleSynthEditor)
 };
 
