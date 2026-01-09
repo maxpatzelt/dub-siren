@@ -1,6 +1,6 @@
 # Dub Siren — JUCE VST3 Synthesizer
 
-This branch transforms the original SimpleSynth into "Dub Siren": a mono, dub-inspired VST3 with a gritty VCO, two free-running LFOs, and a wobbling dub delay. The repository now uses `DubSiren` as the CMake target and `Dub Siren` as the plugin product name so the VST shows up as "Dub Siren" in hosts.
+"Dub Siren": a mono, dub-inspired VST3 with a gritty VCO, two free-running LFOs, and a wobbling dub delay.
 
 Overview: A monophonic, creative sound-design instrument built with JUCE and modern C++ (C++17). Intended for live performance and dub-style modulation.
 
