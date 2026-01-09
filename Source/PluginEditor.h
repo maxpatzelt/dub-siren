@@ -4,6 +4,21 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "PluginProcessor.h"
 
+// Custom LookAndFeel for rasta-colored solid knobs
+class RastaKnobLookAndFeel : public juce::LookAndFeel_V4
+{
+public:
+    RastaKnobLookAndFeel();
+    void drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height,
+                         float sliderPos, float rotaryStartAngle, float rotaryEndAngle,
+                         juce::Slider& slider) override;
+    
+    void setKnobColour(int index);
+    
+private:
+    juce::Colour currentKnobColour;
+};
+
 class SimpleSynthEditor  : public juce::AudioProcessorEditor
 {
 public:
@@ -23,6 +38,12 @@ private:
     juce::Slider lfo2RateSlider, lfo2AmountSlider;
 
     juce::ComboBox lfo1TargetBox, lfo2TargetBox;
+    
+    // Static labels for knobs
+    juce::Label vcoRateLabel, vcoLevelLabel;
+    juce::Label delayTimeLabel, delayFeedbackLabel, delayWetDryLabel;
+    juce::Label lfo1RateLabel, lfo1AmountLabel;
+    juce::Label lfo2RateLabel, lfo2AmountLabel;
 
     using Attachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     using ChoiceAttachment = juce::AudioProcessorValueTreeState::ComboBoxAttachment;
@@ -36,6 +57,9 @@ private:
 
     // Background panel image
     juce::Image panelImage;
+    
+    // Custom LookAndFeel instances for each knob with different rasta colors
+    std::array<std::unique_ptr<RastaKnobLookAndFeel>, 9> knobLookAndFeels;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SimpleSynthEditor)
 };

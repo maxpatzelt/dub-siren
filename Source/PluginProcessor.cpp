@@ -31,7 +31,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout SimpleSynthProcessor::create
     // LFO 1 Parameters
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         "lfo1Rate", "LFO 1 Rate",
-        juce::NormalisableRange<float>(0.01f, 80.0f, 0.01f, 0.3f), 2.0f));
+        juce::NormalisableRange<float>(0.1f, 80.0f, 0.01f, 0.3f), 2.0f));
 
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         "lfo1Amount", "LFO 1 Amount",
@@ -44,7 +44,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout SimpleSynthProcessor::create
     // LFO 2 Parameters
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         "lfo2Rate", "LFO 2 Rate",
-        juce::NormalisableRange<float>(0.01f, 80.0f, 0.01f, 0.3f), 0.5f));
+        juce::NormalisableRange<float>(0.1f, 80.0f, 0.01f, 0.3f), 0.5f));
 
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         "lfo2Amount", "LFO 2 Amount",
@@ -164,44 +164,11 @@ void SimpleSynthProcessor::updateDSPFromParameters()
     float lfo2Amount = parameters_.getRawParameterValue("lfo2Amount")->load();
     int lfo2TargetIndex = parameters_.getRawParameterValue("lfo2Target")->load();
 
-    // Update LFO 2 (it can modulate LFO 1)
+    // Set LFO base rates (will be processed per-sample in processBlock)
     lfo2_.SetRate(lfo2Rate);
     lfo2_.SetAmount(lfo2Amount);
-
-    float lfo2Value = lfo2_.ProcessSample();
-    float lfo2Mod = lfo2Value * lfo2Amount;
-
-    // Apply LFO2 modulation
-    LFO2Target lfo2Target = static_cast<LFO2Target>(lfo2TargetIndex);
-
-    if (lfo2Target == LFO2Target::LFO1Rate) {
-        float modulatedLFO1Rate = lfo1Rate * (1.0f + lfo2Mod * 2.0f);
-        lfo1Rate = juce::jlimit(0.01f, 80.0f, modulatedLFO1Rate);
-    } else if (lfo2Target == LFO2Target::LFO1Amount) {
-        lfo1Amount = juce::jlimit(0.0f, 1.0f, lfo1Amount + lfo2Mod * 0.5f);
-    } else if (lfo2Target == LFO2Target::DelayWetDry) {
-        delayWetDry = juce::jlimit(0.0f, 1.0f, delayWetDry + lfo2Mod * 0.3f);
-    }
-
-    // Update LFO 1
     lfo1_.SetRate(lfo1Rate);
     lfo1_.SetAmount(lfo1Amount);
-
-    float lfo1Value = lfo1_.ProcessSample();
-    float lfo1Mod = lfo1Value * lfo1Amount;
-
-    // Apply LFO1 modulation
-    LFO1Target lfo1Target = static_cast<LFO1Target>(lfo1TargetIndex);
-
-    if (lfo1Target == LFO1Target::VCORate) {
-        float modulatedVCORate = vcoRate * (1.0f + lfo1Mod * 4.0f);
-        vcoRate = juce::jlimit(20.0f, 2000.0f, modulatedVCORate);
-    } else if (lfo1Target == LFO1Target::DelayTime) {
-        float modulatedDelayTime = delayTime * (1.0f + lfo1Mod * 0.5f);
-        delayTime = juce::jlimit(0.001f, 2.0f, modulatedDelayTime);
-    } else if (lfo1Target == LFO1Target::DelayFeedback) {
-        delayFeedback = juce::jlimit(0.0f, 0.95f, delayFeedback + lfo1Mod * 0.3f);
-    }
 
     // Update DSP modules with modulated values
     dubOscillator_.SetFrequency(vcoRate);
@@ -264,6 +231,53 @@ void SimpleSynthProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             hasMsg = it.getNextEvent(msg, samplePos);
         }
 
+        // Process LFOs per-sample for fast modulation
+        float lfo2Value = lfo2_.ProcessSample();
+        float lfo1Value = lfo1_.ProcessSample();
+        
+        // Get parameter values
+        float baseVCORate = parameters_.getRawParameterValue("vcoRate")->load();
+        float baseDelayTime = parameters_.getRawParameterValue("delayTime")->load();
+        float baseDelayFeedback = parameters_.getRawParameterValue("delayFeedback")->load();
+        float baseDelayWetDry = parameters_.getRawParameterValue("delayWetDry")->load();
+        int lfo1TargetIndex = parameters_.getRawParameterValue("lfo1Target")->load();
+        int lfo2TargetIndex = parameters_.getRawParameterValue("lfo2Target")->load();
+        float lfo1Amount = parameters_.getRawParameterValue("lfo1Amount")->load();
+        float lfo2Amount = parameters_.getRawParameterValue("lfo2Amount")->load();
+        float baseLFO1Rate = parameters_.getRawParameterValue("lfo1Rate")->load();
+        
+        float lfo2Mod = lfo2Value * lfo2Amount;
+        float currentLFO1Rate = baseLFO1Rate;
+        float currentLFO1Amount = lfo1Amount;
+        
+        // Apply LFO2 modulation
+        LFO2Target lfo2Target = static_cast<LFO2Target>(lfo2TargetIndex);
+        if (lfo2Target == LFO2Target::LFO1Rate) {
+            float modulatedLFO1Rate = baseLFO1Rate * (1.0f + lfo2Mod * 3.0f);
+            currentLFO1Rate = juce::jlimit(0.1f, 80.0f, modulatedLFO1Rate);
+            lfo1_.SetRate(currentLFO1Rate);
+        } else if (lfo2Target == LFO2Target::LFO1Amount) {
+            currentLFO1Amount = juce::jlimit(0.0f, 1.0f, lfo1Amount + lfo2Mod * 0.5f);
+        } else if (lfo2Target == LFO2Target::DelayWetDry) {
+            baseDelayWetDry = juce::jlimit(0.0f, 1.0f, baseDelayWetDry + lfo2Mod * 0.3f);
+        }
+        
+        float lfo1Mod = lfo1Value * currentLFO1Amount;
+        
+        // Apply LFO1 modulation
+        LFO1Target lfo1Target = static_cast<LFO1Target>(lfo1TargetIndex);
+        if (lfo1Target == LFO1Target::VCORate) {
+            float modulatedVCORate = baseVCORate * (1.0f + lfo1Mod * 4.0f);
+            dubOscillator_.SetFrequency(juce::jlimit(20.0f, 2000.0f, modulatedVCORate));
+        } else if (lfo1Target == LFO1Target::DelayTime) {
+            float modulatedDelayTime = baseDelayTime * (1.0f + lfo1Mod * 0.5f);
+            dubDelay_.SetDelayTime(juce::jlimit(0.001f, 2.0f, modulatedDelayTime));
+        } else if (lfo1Target == LFO1Target::DelayFeedback) {
+            dubDelay_.SetFeedback(juce::jlimit(0.0f, 0.95f, baseDelayFeedback + lfo1Mod * 0.3f));
+        }
+        
+        dubDelay_.SetWetDry(baseDelayWetDry);
+        
         float outSample = 0.0f;
         // Process envelope per-sample
         float envVal = envelope_.ProcessSample();
