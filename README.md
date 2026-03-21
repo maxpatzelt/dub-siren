@@ -1,203 +1,123 @@
-# Dub Siren — JUCE VST3 Synthesizer
+# Dub Siren
 
 <img width="996" height="780" alt="dubsirenpic" src="https://github.com/user-attachments/assets/8838a1b0-ff4a-4028-a777-d80df43014ed" />
 
+A monophonic VST3 dub synthesizer — gritty square wave VCO, two free-running LFOs with flexible routing, and a dub-style feedback delay with analog wobble.
 
-"Dub Siren": a mono, dub-inspired VST3 with a gritty VCO, two free-running LFOs, and a wobbling dub delay.
+**Author:** Max Patzelt — https://github.com/maxpatzelt/
 
-Overview: A monophonic, creative sound-design instrument built with JUCE and modern C++ (C++17). Intended for live performance and dub-style modulation.
+---
 
 ## Features
 
-- **Band-Limited Oscillator**: Sine, sawtooth, and square waveforms with polyBLEP anti-aliasing
-- **ADSR Envelope**: Full attack-decay-sustain-release amplitude shaping
-- **Monophonic Voice**: Single voice architecture ready for future polyphony
-- **Automated Tests**: Comprehensive unit tests for all DSP components
-- **Clean Architecture**: Modular DSP core separate from JUCE plugin framework
+- **Dub VCO** — Square wave oscillator (`DubOscillator`) with analog drift simulation, MIDI note tracking, and velocity-sensitive amplitude
+- **Dual LFOs** — Two independent sine-wave LFOs with configurable routing targets
+- **Dub Delay** — Feedback delay (`DubDelay`) with wet/dry mix and subtle wobble instability; up to 2 seconds delay time
+- **ADSR Envelope** — Full attack-decay-sustain-release amplitude shaping per note
+- **MIDI** — Note-on/off, pitch tracking, velocity scaling
+
+### LFO Routing
+
+| LFO | Targets |
+|-----|---------|
+| LFO 1 | VCO Rate · Delay Time · Delay Feedback |
+| LFO 2 | LFO 1 Rate · LFO 1 Amount · Delay Wet/Dry |
 
 ## Project Structure
 
 ```
-SimpleSynth/
-├── CMakeLists.txt              # Root build configuration
+dub-siren/
+├── CMakeLists.txt
 ├── Source/
-│   ├── PluginProcessor.cpp/h   # Main plugin interface
-│   ├── PluginEditor.cpp/h      # GUI (minimal for now)
+│   ├── PluginProcessor.cpp/h     — JUCE entry point, parameter tree, MIDI handling
+│   ├── PluginEditor.cpp/h        — UI, RastaKnobLookAndFeel
 │   └── DSP/
-│       ├── Common.h            # Shared utilities and constants
-│       ├── Oscillator.cpp/h    # Band-limited waveform generator
-│       ├── Envelope.cpp/h      # ADSR envelope generator
-│       └── Voice.cpp/h         # Complete synth voice
+│       ├── Common.h              — Shared types and constants
+│       ├── DubOscillator.cpp/h   — Square wave VCO with analog drift
+│       ├── LFO.cpp/h             — Free-running sine LFO (-1 to +1)
+│       ├── DubDelay.cpp/h        — Dub delay, feedback, wobble
+│       ├── Envelope.cpp/h        — ADSR amplitude envelope
+│       ├── Oscillator.cpp/h      — Base band-limited oscillator
+│       └── Voice.cpp/h           — Per-note voice state
 └── Tests/
-    ├── CMakeLists.txt          # Test build configuration
-    ├── test_Main.cpp           # Test runner
-    ├── test_Oscillator.cpp     # Oscillator unit tests
-    └── test_Envelope.cpp       # Envelope unit tests
+    ├── test_Oscillator.cpp
+    └── test_Envelope.cpp
 ```
 
-## Requirements
+All DSP lives in `namespace DubSiren::DSP`.
 
-- **CMake** 3.15 or later
-- **C++17** compatible compiler (MSVC, GCC, Clang)
-- **JUCE Framework** 7.0+ (fetched automatically or via submodule)
-- **Git** (for JUCE submodule)
+## Parameters
+
+| ID | Name | Range | Default |
+|----|------|--------|---------|
+| `vco_rate` | VCO Rate | 20–2000 Hz | 200 Hz |
+| `vco_level` | VCO Level | 0–1 | 0.8 |
+| `delay_time` | Delay Time | 0.05–2.0 s | 0.5 s |
+| `delay_feedback` | Feedback | 0–0.95 | 0.4 |
+| `delay_wet_dry` | Wet/Dry | 0–1 | 0.5 |
+| `lfo1_rate` | LFO 1 Rate | 0.1–10 Hz | 1.0 Hz |
+| `lfo1_amount` | LFO 1 Amount | 0–1 | 0.3 |
+| `lfo2_rate` | LFO 2 Rate | 0.1–5 Hz | 0.5 Hz |
+| `lfo2_amount` | LFO 2 Amount | 0–1 | 0.2 |
+| `lfo1_target` | LFO 1 Target | None / VCO Rate / Delay Time / Delay FB | None |
+| `lfo2_target` | LFO 2 Target | None / LFO1 Rate / LFO1 Amount / Delay W/D | None |
 
 ## Building
 
-### 1. Clone JUCE Framework
+### Requirements
+
+- JUCE 7+ (git submodule at `libs/JUCE`)
+- CMake 3.15+
+- C++17 compiler: MSVC 2019+, Clang 10+, or GCC 9+
+
+### Steps
 
 ```bash
-cd SimpleSynth
+# Add JUCE submodule
 git submodule add https://github.com/juce-framework/JUCE.git libs/JUCE
 git submodule update --init --recursive
+
+# Configure & build
+cmake -B build
+cmake --build build --config Release
 ```
 
-**Alternative**: Use CMake FetchContent (add to root CMakeLists.txt):
-```cmake
-include(FetchContent)
-FetchContent_Declare(
-    JUCE
-    GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
-    GIT_TAG 7.0.12
-)
-FetchContent_MakeAvailable(JUCE)
-```
+The VST3 will be at: `build/DubSiren_artefacts/Release/VST3/Dub Siren.vst3`
 
-### 2. Configure and Build
+### Install
 
-#### Windows (Visual Studio)
+**Windows:**
 ```powershell
-mkdir build
-cd build
-cmake .. -G "Visual Studio 17 2022"
-cmake --build . --config Release
+Copy-Item -Path "build\DubSiren_artefacts\Release\VST3\Dub Siren.vst3" `
+  -Destination "$env:CommonProgramFiles\VST3\" -Recurse -Force
 ```
 
-#### macOS/Linux
+**macOS:**
 ```bash
-mkdir build
-cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-cmake --build .
+cp -r "build/DubSiren_artefacts/Release/VST3/Dub Siren.vst3" \
+  ~/Library/Audio/Plug-Ins/VST3/
 ```
 
-### 3. Run Tests
+## Tests
 
 ```bash
-cd build
-ctest --verbose
-# Or run directly:
-./Tests/SimpleSynth_Tests  # macOS/Linux
-.\Tests\Release\SimpleSynth_Tests.exe  # Windows
+# Windows
+.\build\Tests\Release\DubSiren_Tests.exe
+# macOS/Linux
+./build/Tests/DubSiren_Tests
 ```
-
-### 4. Install Plugin
-
-After building, the VST3 plugin will be in:
-- **Windows**: `build/SimpleSynth_artefacts/Release/VST3/SimpleSynth.vst3`
-- **macOS**: `build/SimpleSynth_artefacts/Release/VST3/SimpleSynth.vst3`
-- **Linux**: `build/SimpleSynth_artefacts/Release/VST3/SimpleSynth.vst3`
-
-Copy to your DAW's VST3 folder:
-- **Windows**: `C:\Program Files\Common Files\VST3\`
-- **macOS**: `~/Library/Audio/Plug-Ins/VST3/`
-- **Linux**: `~/.vst3/`
-
-## Usage
-
-1. Load SimpleSynth in your DAW as a VST3 instrument
-2. Connect a MIDI keyboard or controller
-3. Play notes (currently uses sawtooth waveform with fixed ADSR settings)
-4. Enjoy the clean, band-limited sound!
-
-## Testing
-
-Run all unit tests:
-```bash
-cd build
-ctest --output-on-failure
-```
-
-Individual test categories:
-- **Oscillator Tests**: Waveform generation, frequency accuracy, anti-aliasing
-- **Envelope Tests**: ADSR stages, gate behavior, denormal prevention
-
-## Code Style
-
-- **C++17** standard with modern idioms
-- **Explicit types**: No auto-abuse, clear intent
-- **Comments explain why**, not what
-- **No mystical DSP**: Every algorithm is understandable
-- **RAII and smart pointers** where appropriate
-
-## Architecture Notes
-
-### DSP Core Design
-
-Inspired by Mutable Instruments:
-- **State separation**: DSP objects contain no JUCE dependencies
-- **Sample-rate agnostic**: All components accept sample rate as parameter
-- **Block processing**: Efficient buffer-based rendering
-- **Explicit state management**: Clear Init(), Reset(), Process() methods
-
-### Oscillator
-
-- **PolyBLEP anti-aliasing** for sawtooth and square waves
-- **Pure sine wave** (no aliasing, no correction needed)
-- **Normalized phase** [0, 1) for clarity
-- **Frequency clamping** to valid audio range
-
-### Envelope
-
-- **Linear segments** (exponential curves in future phase)
-- **State machine**: Idle → Attack → Decay → Sustain → Release
-- **Sample-accurate** gate timing
-- **Denormal prevention** to avoid CPU spikes
-
-### Voice
-
-- Combines oscillator + envelope
-- MIDI note → frequency conversion
-- Velocity scaling
-- Ready for filter/modulation additions
 
 ## Roadmap
 
-### Phase 2 (Near Future)
-- [ ] Add GUI controls (waveform selector, ADSR sliders)
-- [ ] Parameter automation via AudioProcessorValueTreeState
-- [ ] Preset save/load system
-- [ ] Oscilloscope visualizer
-
-### Phase 3 (Advanced)
-- [ ] Polyphonic voice management (4-8 voices)
-- [ ] Low-pass/high-pass filters
-- [ ] LFO modulation sources
-- [ ] Modulation matrix routing
-
-### Phase 4 (Experimental)
-- [ ] Wavetable synthesis
-- [ ] Modal synthesis (resonator bank)
-- [ ] Granular synthesis
-- [ ] CV-style modulation (Mutable-inspired)
+- [ ] ADSR sliders exposed in UI
+- [ ] Preset save/load
+- [ ] Second oscillator / octave spread
+- [ ] Portamento / pitch glide
+- [ ] macOS Universal Binary (Intel + Apple Silicon)
+- [ ] AAX format (Pro Tools)
 
 ## License
 
-This project is provided as educational code. Use freely for learning and experimentation.
+MIT
 
-JUCE is licensed under GPL v3 or commercial license (see JUCE documentation).
-
-## Contributing
-
-This is a learning project! Feel free to:
-- Report bugs or DSP issues
-- Suggest architecture improvements
-- Add test cases
-- Propose new features
-
-## References
-
-- **JUCE Framework**: https://juce.com/
-- **PolyBLEP**: Valimaki & Huovilainen papers on alias suppression
-- **Mutable Instruments**: Open-source Eurorack firmware (design inspiration)
-- **Synthesizer Architecture**: Will Pirkle - Designing Software Synthesizer Plug-Ins in C++
+JUCE is licensed under GPL v3 or commercial license — see https://juce.com/juce-7-licence/

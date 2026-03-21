@@ -1,7 +1,7 @@
 #include "Voice.h"
 #include <cassert>
 
-namespace SimpleSynth {
+namespace DubSiren {
 namespace DSP {
 
 Voice::Voice()
@@ -81,4 +81,4 @@ void Voice::SetEnvelopeParameters(float attackMs, float decayMs,
 }
 
 } // namespace DSP
-} // namespace SimpleSynth
+} // namespace DubSiren

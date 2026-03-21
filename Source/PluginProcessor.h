@@ -14,11 +14,11 @@
  * - Dub-style delay effect
  * - Two LFOs for modulation routing
  */
-class SimpleSynthProcessor : public juce::AudioProcessor
+class DubSirenProcessor : public juce::AudioProcessor
 {
 public:
-    SimpleSynthProcessor();
-    ~SimpleSynthProcessor() override;
+    DubSirenProcessor();
+    ~DubSirenProcessor() override;
 
     //==============================================================================
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
@@ -73,11 +73,11 @@ private:
     void updateDSPFromParameters();
 
     // DSP modules
-    SimpleSynth::DSP::DubOscillator dubOscillator_;
-    SimpleSynth::DSP::LFO lfo1_;
-    SimpleSynth::DSP::LFO lfo2_;
-    SimpleSynth::DSP::DubDelay dubDelay_;
-    SimpleSynth::DSP::Envelope envelope_;
+    DubSiren::DSP::DubOscillator dubOscillator_;
+    DubSiren::DSP::LFO lfo1_;
+    DubSiren::DSP::LFO lfo2_;
+    DubSiren::DSP::DubDelay dubDelay_;
+    DubSiren::DSP::Envelope envelope_;
 
     // Parameter management
     juce::AudioProcessorValueTreeState parameters_;
@@ -89,5 +89,5 @@ private:
 
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SimpleSynthProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DubSirenProcessor)
 };

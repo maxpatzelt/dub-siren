@@ -2,7 +2,7 @@
 #include "PluginEditor.h"
 
 //==============================================================================
-juce::AudioProcessorValueTreeState::ParameterLayout SimpleSynthProcessor::createParameterLayout()
+juce::AudioProcessorValueTreeState::ParameterLayout DubSirenProcessor::createParameterLayout()
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
 
@@ -58,71 +58,71 @@ juce::AudioProcessorValueTreeState::ParameterLayout SimpleSynthProcessor::create
 }
 
 //==============================================================================
-SimpleSynthProcessor::SimpleSynthProcessor()
+DubSirenProcessor::DubSirenProcessor()
     : AudioProcessor(BusesProperties()
                          .withOutput("Output", juce::AudioChannelSet::mono(), true))
     , parameters_(*this, nullptr, "DubSiren", createParameterLayout())
 {
 }
 
-SimpleSynthProcessor::~SimpleSynthProcessor()
+DubSirenProcessor::~DubSirenProcessor()
 {
 }
 
 //==============================================================================
-const juce::String SimpleSynthProcessor::getName() const
+const juce::String DubSirenProcessor::getName() const
 {
     return JucePlugin_Name;
 }
 
-bool SimpleSynthProcessor::acceptsMidi() const
+bool DubSirenProcessor::acceptsMidi() const
 {
     return true;
 }
 
-bool SimpleSynthProcessor::producesMidi() const
+bool DubSirenProcessor::producesMidi() const
 {
     return false;
 }
 
-bool SimpleSynthProcessor::isMidiEffect() const
+bool DubSirenProcessor::isMidiEffect() const
 {
     return false;
 }
 
-double SimpleSynthProcessor::getTailLengthSeconds() const
+double DubSirenProcessor::getTailLengthSeconds() const
 {
     return 2.0; // Delay tail
 }
 
-int SimpleSynthProcessor::getNumPrograms()
+int DubSirenProcessor::getNumPrograms()
 {
     return 1;
 }
 
-int SimpleSynthProcessor::getCurrentProgram()
+int DubSirenProcessor::getCurrentProgram()
 {
     return 0;
 }
 
-void SimpleSynthProcessor::setCurrentProgram(int index)
+void DubSirenProcessor::setCurrentProgram(int index)
 {
     juce::ignoreUnused(index);
 }
 
-const juce::String SimpleSynthProcessor::getProgramName(int index)
+const juce::String DubSirenProcessor::getProgramName(int index)
 {
     juce::ignoreUnused(index);
     return {};
 }
 
-void SimpleSynthProcessor::changeProgramName(int index, const juce::String& newName)
+void DubSirenProcessor::changeProgramName(int index, const juce::String& newName)
 {
     juce::ignoreUnused(index, newName);
 }
 
 //==============================================================================
-void SimpleSynthProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
+void DubSirenProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     juce::ignoreUnused(samplesPerBlock);
 
@@ -136,17 +136,17 @@ void SimpleSynthProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     updateDSPFromParameters();
 }
 
-void SimpleSynthProcessor::releaseResources()
+void DubSirenProcessor::releaseResources()
 {
 }
 
-bool SimpleSynthProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
+bool DubSirenProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
 {
     // Support mono output only (classic dub siren)
     return layouts.getMainOutputChannelSet() == juce::AudioChannelSet::mono();
 }
 
-void SimpleSynthProcessor::updateDSPFromParameters()
+void DubSirenProcessor::updateDSPFromParameters()
 {
     // Get parameter values
     float vcoRate = parameters_.getRawParameterValue("vcoRate")->load();
@@ -179,7 +179,7 @@ void SimpleSynthProcessor::updateDSPFromParameters()
     dubDelay_.SetWetDry(delayWetDry);
 }
 
-void SimpleSynthProcessor::processBlock(juce::AudioBuffer<float>& buffer,
+void DubSirenProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                                         juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
@@ -210,7 +210,7 @@ void SimpleSynthProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                 isNoteOn_ = true;
                 currentNoteVelocity_ = msg.getFloatVelocity();
                 // set oscillator frequency
-                float freq = SimpleSynth::DSP::MidiNoteToFrequency(currentMidiNote_);
+                float freq = DubSiren::DSP::MidiNoteToFrequency(currentMidiNote_);
                 dubOscillator_.SetFrequency(freq);
                 // scale base level by velocity (final amplitude will be multiplied by envelope)
                 float baseLevel = parameters_.getRawParameterValue("vcoLevel")->load();
@@ -295,25 +295,25 @@ void SimpleSynthProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 }
 
 //==============================================================================
-bool SimpleSynthProcessor::hasEditor() const
+bool DubSirenProcessor::hasEditor() const
 {
     return true;
 }
 
-juce::AudioProcessorEditor* SimpleSynthProcessor::createEditor()
+juce::AudioProcessorEditor* DubSirenProcessor::createEditor()
 {
-    return new SimpleSynthEditor(*this);
+    return new DubSirenEditor(*this);
 }
 
 //==============================================================================
-void SimpleSynthProcessor::getStateInformation(juce::MemoryBlock& destData)
+void DubSirenProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
     auto state = parameters_.copyState();
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
     copyXmlToBinary(*xml, destData);
 }
 
-void SimpleSynthProcessor::setStateInformation(const void* data, int sizeInBytes)
+void DubSirenProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
 
@@ -326,5 +326,5 @@ void SimpleSynthProcessor::setStateInformation(const void* data, int sizeInBytes
 // This creates new instances of the plugin
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
-    return new SimpleSynthProcessor();
+    return new DubSirenProcessor();
 }

@@ -3,7 +3,7 @@
 #include <cmath>
 #include <algorithm>
 
-namespace SimpleSynth {
+namespace DubSiren {
 namespace DSP {
 
 DubDelay::DubDelay()
@@ -88,4 +88,4 @@ void DubDelay::Process(float* buffer, size_t numSamples) {
 }
 
 } // namespace DSP
-} // namespace SimpleSynth
+} // namespace DubSiren

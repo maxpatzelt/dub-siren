@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <limits>
 
-namespace SimpleSynth {
+namespace DubSiren {
 namespace DSP {
 
 // Audio processing constants
@@ -65,4 +65,4 @@ inline float WrapPhase(float phase) {
 }
 
 } // namespace DSP
-} // namespace SimpleSynth
+} // namespace DubSiren

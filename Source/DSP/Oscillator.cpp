@@ -1,7 +1,7 @@
 #include "Oscillator.h"
 #include <cassert>
 
-namespace SimpleSynth {
+namespace DubSiren {
 namespace DSP {
 
 Oscillator::Oscillator()
@@ -106,4 +106,4 @@ void Oscillator::Process(float* output, size_t numSamples) {
 }
 
 } // namespace DSP
-} // namespace SimpleSynth
+} // namespace DubSiren

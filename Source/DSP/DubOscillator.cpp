@@ -2,7 +2,7 @@
 #include <cassert>
 #include <cmath>
 
-namespace SimpleSynth {
+namespace DubSiren {
 namespace DSP {
 
 DubOscillator::DubOscillator()
@@ -73,4 +73,4 @@ void DubOscillator::Process(float* output, size_t numSamples) {
 }
 
 } // namespace DSP
-} // namespace SimpleSynth
+} // namespace DubSiren

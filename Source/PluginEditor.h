@@ -19,17 +19,17 @@ private:
     juce::Colour currentKnobColour;
 };
 
-class SimpleSynthEditor  : public juce::AudioProcessorEditor
+class DubSirenEditor  : public juce::AudioProcessorEditor
 {
 public:
-    SimpleSynthEditor(SimpleSynthProcessor&);
-    ~SimpleSynthEditor() override;
+    DubSirenEditor(DubSirenProcessor&);
+    ~DubSirenEditor() override;
 
     void paint(juce::Graphics&) override;
     void resized() override;
 
 private:
-    SimpleSynthProcessor& processorRef;
+    DubSirenProcessor& processorRef;
 
     // Controls
     juce::Slider vcoRateSlider, vcoLevelSlider;
@@ -61,6 +61,6 @@ private:
     // Custom LookAndFeel instances for each knob with different rasta colors
     std::array<std::unique_ptr<RastaKnobLookAndFeel>, 9> knobLookAndFeels;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SimpleSynthEditor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DubSirenEditor)
 };
 

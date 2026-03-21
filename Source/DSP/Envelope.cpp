@@ -1,7 +1,7 @@
 #include "Envelope.h"
 #include <cassert>
 
-namespace SimpleSynth {
+namespace DubSiren {
 namespace DSP {
 
 Envelope::Envelope()
@@ -160,4 +160,4 @@ bool Envelope::IsActive() const {
 }
 
 } // namespace DSP
-} // namespace SimpleSynth
+} // namespace DubSiren

@@ -48,7 +48,7 @@ void RastaKnobLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int
 }
 
 //==============================================================================
-SimpleSynthEditor::SimpleSynthEditor(SimpleSynthProcessor& p)
+DubSirenEditor::DubSirenEditor(DubSirenProcessor& p)
     : AudioProcessorEditor(&p), processorRef(p)
 {
     auto& params = processorRef.getParameters();
@@ -157,9 +157,9 @@ SimpleSynthEditor::SimpleSynthEditor(SimpleSynthProcessor& p)
     setSize(800, 600);
 }
 
-SimpleSynthEditor::~SimpleSynthEditor() = default;
+DubSirenEditor::~DubSirenEditor() = default;
 
-void SimpleSynthEditor::paint(juce::Graphics& g)
+void DubSirenEditor::paint(juce::Graphics& g)
 {
     // Draw the panel background image
     if (panelImage.isValid())
@@ -177,7 +177,7 @@ void SimpleSynthEditor::paint(juce::Graphics& g)
     }
 }
 
-void SimpleSynthEditor::resized()
+void DubSirenEditor::resized()
 {
     auto bounds = getLocalBounds();
     int w = bounds.getWidth();

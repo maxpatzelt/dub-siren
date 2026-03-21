@@ -20,8 +20,8 @@ endif()
 
 # Create the plugin target
 juce_add_plugin(DubSiren
-    COMPANY_NAME "YourCompany"
-    PLUGIN_MANUFACTURER_CODE Manu
+    COMPANY_NAME "Max Patzelt"
+    PLUGIN_MANUFACTURER_CODE MxPz
     PLUGIN_CODE Syn1
     FORMATS VST3
     PRODUCT_NAME "Dub Siren"

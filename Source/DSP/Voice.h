@@ -3,7 +3,7 @@
 #include "Oscillator.h"
 #include "Envelope.h"
 
-namespace SimpleSynth {
+namespace DubSiren {
 namespace DSP {
 
 /**
@@ -88,4 +88,4 @@ private:
 };
 
 } // namespace DSP
-} // namespace SimpleSynth
+} // namespace DubSiren

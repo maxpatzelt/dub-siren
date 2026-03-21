@@ -1,4 +1,4 @@
-# SimpleSynth - Build & Test Guide
+# DubSiren - Build & Test Guide
 
 ## Quick Start (After Build Tools Install)
 
@@ -8,7 +8,7 @@
 
 2. **Navigate and build**:
    ```cmd
-   cd C:\Users\maxpa\SimpleSynth
+   cd C:\Users\maxpa\Audio Plugin Dev\dub-siren
    mkdir build
    cd build
    cmake ..
@@ -17,14 +17,14 @@
 
 3. **Run tests**:
    ```cmd
-   .\Tests\Release\SimpleSynth_Tests.exe
+   .\Tests\Release\DubSiren_Tests.exe
    ```
 
 ### Option 2: Using PowerShell with vcvars
 
 1. **Initialize Visual Studio environment**:
    ```powershell
-   cd C:\Users\maxpa\SimpleSynth
+   cd C:\Users\maxpa\Audio Plugin Dev\dub-siren
    & "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
    ```
 
@@ -39,7 +39,7 @@
 
 3. **Run tests**:
    ```powershell
-   .\Tests\Release\SimpleSynth_Tests.exe
+   .\Tests\Release\DubSiren_Tests.exe
    ```
 
 ---
@@ -50,8 +50,8 @@
 
 **Run all tests**:
 ```powershell
-cd C:\Users\maxpa\SimpleSynth\build
-.\Tests\Release\SimpleSynth_Tests.exe
+cd C:\Users\maxpa\Audio Plugin Dev\dub-siren\build
+.\Tests\Release\DubSiren_Tests.exe
 ```
 
 **Expected output**:
@@ -87,19 +87,19 @@ Test Summary:
 
 **Find the built plugin**:
 ```powershell
-cd C:\Users\maxpa\SimpleSynth\build
-dir SimpleSynth_artefacts\Release\VST3\SimpleSynth.vst3 -Recurse
+cd C:\Users\maxpa\Audio Plugin Dev\dub-siren\build
+dir DubSiren_artefacts\Release\VST3\Dub Siren.vst3 -Recurse
 ```
 
 **Install to system VST3 folder**:
 ```powershell
-$vst3Source = "C:\Users\maxpa\SimpleSynth\build\SimpleSynth_artefacts\Release\VST3\SimpleSynth.vst3"
+$vst3Source = "C:\Users\maxpa\Audio Plugin Dev\dub-siren\build\DubSiren_artefacts\Release\VST3\Dub Siren.vst3"
 $vst3Dest = "$env:CommonProgramFiles\VST3\"
 
 # Copy plugin
 Copy-Item -Path $vst3Source -Destination $vst3Dest -Recurse -Force
 
-Write-Host "SimpleSynth installed to: $vst3Dest"
+Write-Host "DubSiren installed to: $vst3Dest"
 ```
 
 ### 3. Test in a DAW
@@ -115,8 +115,8 @@ Write-Host "SimpleSynth installed to: $vst3Dest"
 
 2. **Create a new project / track**
 
-3. **Add SimpleSynth as instrument**:
-   - In Reaper: Insert → Virtual Instrument → VST3 → SimpleSynth
+3. **Add DubSiren as instrument**:
+   - In Reaper: Insert → Virtual Instrument → VST3 → DubSiren
 
 4. **Arm track for recording** and enable input monitoring
 
@@ -150,7 +150,7 @@ If you want to verify audio output programmatically:
 
 **Check error messages**:
 ```powershell
-.\Tests\Release\SimpleSynth_Tests.exe --verbose
+.\Tests\Release\DubSiren_Tests.exe --verbose
 ```
 
 **Common issues**:
@@ -162,7 +162,7 @@ If you want to verify audio output programmatically:
 
 **Verify VST3 installation**:
 ```powershell
-ls "$env:CommonProgramFiles\VST3\SimpleSynth.vst3"
+ls "$env:CommonProgramFiles\VST3\Dub Siren.vst3"
 ```
 
 **Rescan plugins** in your DAW:
@@ -173,14 +173,14 @@ ls "$env:CommonProgramFiles\VST3\SimpleSynth.vst3"
 
 1. **Check MIDI input**: Verify track is armed and receiving MIDI
 2. **Check output routing**: Ensure track outputs to master
-3. **Check plugin instance**: SimpleSynth GUI should show "SimpleSynth" title
+3. **Check plugin instance**: DubSiren GUI should show "DubSiren" title
 4. **Try different notes**: MIDI note 60 (C4) at full velocity
 
 ### Build Errors
 
 **Missing JUCE**:
 ```powershell
-cd C:\Users\maxpa\SimpleSynth
+cd C:\Users\maxpa\Audio Plugin Dev\dub-siren
 git submodule update --init --recursive
 ```
 
@@ -201,7 +201,7 @@ cmake --build . --config Release
 ### CPU Usage Test
 
 In your DAW:
-1. Load SimpleSynth on a track
+1. Load DubSiren on a track
 2. Play sustained notes
 3. Monitor CPU usage (should be <1% for single voice)
 

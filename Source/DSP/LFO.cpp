@@ -2,7 +2,7 @@
 #include <cassert>
 #include <cmath>
 
-namespace SimpleSynth {
+namespace DubSiren {
 namespace DSP {
 
 LFO::LFO()
@@ -52,4 +52,4 @@ float LFO::GetModulationValue() const {
 }
 
 } // namespace DSP
-} // namespace SimpleSynth
+} // namespace DubSiren

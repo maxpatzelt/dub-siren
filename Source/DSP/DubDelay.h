@@ -3,7 +3,7 @@
 #include "Common.h"
 #include <vector>
 
-namespace SimpleSynth {
+namespace DubSiren {
 namespace DSP {
 
 /**
@@ -43,4 +43,4 @@ private:
 };
 
 } // namespace DSP
-} // namespace SimpleSynth
+} // namespace DubSiren
