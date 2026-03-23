@@ -1,12 +1,14 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include <cmath>
 
 //==============================================================================
-juce::AudioProcessorValueTreeState::ParameterLayout DubSirenProcessor::createParameterLayout()
+juce::AudioProcessorValueTreeState::ParameterLayout
+DubSirenProcessor::createParameterLayout()
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
 
-    // VCO Parameters
+    // ── VCO ────────────────────────────────────────────────────────────────
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         "vcoRate", "VCO Rate",
         juce::NormalisableRange<float>(20.0f, 2000.0f, 0.1f, 0.3f), 440.0f));
@@ -15,7 +17,15 @@ juce::AudioProcessorValueTreeState::ParameterLayout DubSirenProcessor::createPar
         "vcoLevel", "VCO Level",
         juce::NormalisableRange<float>(0.0f, 1.0f), 0.8f));
 
-    // Delay Parameters
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        "vcoWaveform", "VCO Waveform",
+        juce::StringArray{ "Square", "Saw", "Triangle" }, 0));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        "portamento", "Portamento",
+        juce::NormalisableRange<float>(0.0f, 1.0f), 0.0f));
+
+    // ── Delay ──────────────────────────────────────────────────────────────
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         "delayTime", "Delay Time",
         juce::NormalisableRange<float>(0.001f, 2.0f, 0.001f), 0.375f));
@@ -28,7 +38,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout DubSirenProcessor::createPar
         "delayWetDry", "Delay Wet/Dry",
         juce::NormalisableRange<float>(0.0f, 1.0f), 0.4f));
 
-    // LFO 1 Parameters
+    // ── LFO 1 ──────────────────────────────────────────────────────────────
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         "lfo1Rate", "LFO 1 Rate",
         juce::NormalisableRange<float>(0.1f, 80.0f, 0.01f, 0.3f), 2.0f));
@@ -39,9 +49,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout DubSirenProcessor::createPar
 
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         "lfo1Target", "LFO 1 Target",
-        juce::StringArray{"None", "VCO Rate", "Delay Time", "Delay Feedback"}, 0));
+        juce::StringArray{ "None", "VCO Rate", "Delay Time", "Delay Feedback" }, 0));
 
-    // LFO 2 Parameters
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        "lfo1Waveform", "LFO 1 Waveform",
+        juce::StringArray{ "Sine", "Tri", "Square", "S+H" }, 0));
+
+    // ── LFO 2 ──────────────────────────────────────────────────────────────
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         "lfo2Rate", "LFO 2 Rate",
         juce::NormalisableRange<float>(0.1f, 80.0f, 0.01f, 0.3f), 0.5f));
@@ -52,7 +66,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout DubSirenProcessor::createPar
 
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         "lfo2Target", "LFO 2 Target",
-        juce::StringArray{"None", "LFO1 Rate", "LFO1 Amount", "Delay Wet/Dry"}, 0));
+        juce::StringArray{ "None", "LFO1 Rate", "LFO1 Amount", "Delay Wet/Dry" }, 0));
+
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        "lfo2Waveform", "LFO 2 Waveform",
+        juce::StringArray{ "Sine", "Tri", "Square", "S+H" }, 0));
 
     return layout;
 }
@@ -60,245 +78,213 @@ juce::AudioProcessorValueTreeState::ParameterLayout DubSirenProcessor::createPar
 //==============================================================================
 DubSirenProcessor::DubSirenProcessor()
     : AudioProcessor(BusesProperties()
-                         .withOutput("Output", juce::AudioChannelSet::mono(), true))
+          .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , parameters_(*this, nullptr, "DubSiren", createParameterLayout())
-{
-}
+{}
 
-DubSirenProcessor::~DubSirenProcessor()
-{
-}
+DubSirenProcessor::~DubSirenProcessor() {}
 
 //==============================================================================
-const juce::String DubSirenProcessor::getName() const
-{
-    return JucePlugin_Name;
-}
+const juce::String DubSirenProcessor::getName() const { return JucePlugin_Name; }
+bool DubSirenProcessor::acceptsMidi()  const { return true;  }
+bool DubSirenProcessor::producesMidi() const { return false; }
+bool DubSirenProcessor::isMidiEffect() const { return false; }
+double DubSirenProcessor::getTailLengthSeconds() const { return 2.0; }
 
-bool DubSirenProcessor::acceptsMidi() const
-{
-    return true;
-}
-
-bool DubSirenProcessor::producesMidi() const
-{
-    return false;
-}
-
-bool DubSirenProcessor::isMidiEffect() const
-{
-    return false;
-}
-
-double DubSirenProcessor::getTailLengthSeconds() const
-{
-    return 2.0; // Delay tail
-}
-
-int DubSirenProcessor::getNumPrograms()
-{
-    return 1;
-}
-
-int DubSirenProcessor::getCurrentProgram()
-{
-    return 0;
-}
-
-void DubSirenProcessor::setCurrentProgram(int index)
-{
-    juce::ignoreUnused(index);
-}
-
-const juce::String DubSirenProcessor::getProgramName(int index)
-{
-    juce::ignoreUnused(index);
-    return {};
-}
-
-void DubSirenProcessor::changeProgramName(int index, const juce::String& newName)
-{
-    juce::ignoreUnused(index, newName);
-}
+int  DubSirenProcessor::getNumPrograms()            { return 1; }
+int  DubSirenProcessor::getCurrentProgram()         { return 0; }
+void DubSirenProcessor::setCurrentProgram(int)      {}
+const juce::String DubSirenProcessor::getProgramName(int) { return {}; }
+void DubSirenProcessor::changeProgramName(int, const juce::String&) {}
 
 //==============================================================================
-void DubSirenProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
-{
-    juce::ignoreUnused(samplesPerBlock);
-
-    // Initialize DSP modules
-    dubOscillator_.Init(static_cast<float>(sampleRate));
-    lfo1_.Init(static_cast<float>(sampleRate));
-    lfo2_.Init(static_cast<float>(sampleRate));
-    dubDelay_.Init(static_cast<float>(sampleRate), 2.0f);
-    envelope_.Init(static_cast<float>(sampleRate));
-
-    updateDSPFromParameters();
-}
-
-void DubSirenProcessor::releaseResources()
-{
-}
-
 bool DubSirenProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
 {
-    // Support mono output only (classic dub siren)
-    return layouts.getMainOutputChannelSet() == juce::AudioChannelSet::mono();
+    auto& outs = layouts.getMainOutputChannelSet();
+    return outs == juce::AudioChannelSet::mono()
+        || outs == juce::AudioChannelSet::stereo();
 }
 
-void DubSirenProcessor::updateDSPFromParameters()
+//==============================================================================
+void DubSirenProcessor::prepareToPlay(double sampleRate, int /*samplesPerBlock*/)
 {
-    // Get parameter values
-    float vcoRate = parameters_.getRawParameterValue("vcoRate")->load();
-    float vcoLevel = parameters_.getRawParameterValue("vcoLevel")->load();
+    dubOscillator_.Init (static_cast<float>(sampleRate));
+    lfo1_.Init          (static_cast<float>(sampleRate));
+    lfo2_.Init          (static_cast<float>(sampleRate));
+    dubDelay_.Init      (static_cast<float>(sampleRate), 2.0f);
+    envelope_.Init      (static_cast<float>(sampleRate));
 
-    float delayTime = parameters_.getRawParameterValue("delayTime")->load();
-    float delayFeedback = parameters_.getRawParameterValue("delayFeedback")->load();
-    float delayWetDry = parameters_.getRawParameterValue("delayWetDry")->load();
-
-    float lfo1Rate = parameters_.getRawParameterValue("lfo1Rate")->load();
-    float lfo1Amount = parameters_.getRawParameterValue("lfo1Amount")->load();
-    int lfo1TargetIndex = parameters_.getRawParameterValue("lfo1Target")->load();
-
-    float lfo2Rate = parameters_.getRawParameterValue("lfo2Rate")->load();
-    float lfo2Amount = parameters_.getRawParameterValue("lfo2Amount")->load();
-    int lfo2TargetIndex = parameters_.getRawParameterValue("lfo2Target")->load();
-
-    // Set LFO base rates (will be processed per-sample in processBlock)
-    lfo2_.SetRate(lfo2Rate);
-    lfo2_.SetAmount(lfo2Amount);
-    lfo1_.SetRate(lfo1Rate);
-    lfo1_.SetAmount(lfo1Amount);
-
-    // Update DSP modules with modulated values
-    dubOscillator_.SetFrequency(vcoRate);
-    dubOscillator_.SetLevel(vcoLevel);
-
-    dubDelay_.SetDelayTime(delayTime);
-    dubDelay_.SetFeedback(delayFeedback);
-    dubDelay_.SetWetDry(delayWetDry);
+    // Seed the slewedVCOFreq so portamento doesn't slide from 0 on first note
+    slewedVCOFreq_ = *parameters_.getRawParameterValue("vcoRate");
 }
 
+void DubSirenProcessor::releaseResources() {}
+
+//==============================================================================
 void DubSirenProcessor::processBlock(juce::AudioBuffer<float>& buffer,
-                                        juce::MidiBuffer& midiMessages)
+                                     juce::MidiBuffer&         midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
-    // Prepare
-    auto totalNumOutputChannels = getTotalNumOutputChannels();
-
-    // Clear output
     buffer.clear();
 
-    const int numSamples = buffer.getNumSamples();
-    float* outputData = buffer.getWritePointer(0);
+    const int   numSamples = buffer.getNumSamples();
+    const float sampleRate = static_cast<float>(getSampleRate());
 
-    // Update static DSP params (LFOs/Delay) before sample loop
-    updateDSPFromParameters();
+    // ── Cache ALL parameter values at block boundary (never read per-sample) ──
+    const float baseVCORate      = *parameters_.getRawParameterValue("vcoRate");
+    const float vcoLevel         = *parameters_.getRawParameterValue("vcoLevel");
+    const int   vcoWaveformIdx   = static_cast<int>(*parameters_.getRawParameterValue("vcoWaveform"));
+    const float portamento       = *parameters_.getRawParameterValue("portamento");
 
-    // Iterate MIDI events with timing and render sample-by-sample so synth only
-    // produces audio while a MIDI note is held.
+    const float baseDelayTime    = *parameters_.getRawParameterValue("delayTime");
+    const float baseDelayFeedback= *parameters_.getRawParameterValue("delayFeedback");
+    const float baseDelayWetDry  = *parameters_.getRawParameterValue("delayWetDry");
+
+    const float baseLFO1Rate     = *parameters_.getRawParameterValue("lfo1Rate");
+    const float lfo1Amount       = *parameters_.getRawParameterValue("lfo1Amount");
+    const int   lfo1TargetIdx    = static_cast<int>(*parameters_.getRawParameterValue("lfo1Target"));
+    const int   lfo1WaveformIdx  = static_cast<int>(*parameters_.getRawParameterValue("lfo1Waveform"));
+
+    const float baseLFO2Rate     = *parameters_.getRawParameterValue("lfo2Rate");
+    const float lfo2Amount       = *parameters_.getRawParameterValue("lfo2Amount");
+    const int   lfo2TargetIdx    = static_cast<int>(*parameters_.getRawParameterValue("lfo2Target"));
+    const int   lfo2WaveformIdx  = static_cast<int>(*parameters_.getRawParameterValue("lfo2Waveform"));
+
+    // ── Apply waveform / rate selections (block-rate, not per-sample) ────────
+    dubOscillator_.SetWaveform(static_cast<DubSiren::DSP::DubOscillator::Waveform>(vcoWaveformIdx));
+    dubOscillator_.SetLevel(vcoLevel);
+
+    lfo1_.SetWaveform(static_cast<DubSiren::DSP::LFO::Waveform>(lfo1WaveformIdx));
+    lfo1_.SetRate(baseLFO1Rate);
+
+    lfo2_.SetWaveform(static_cast<DubSiren::DSP::LFO::Waveform>(lfo2WaveformIdx));
+    lfo2_.SetRate(baseLFO2Rate);
+
+    // Portamento coefficient — 1-pole slew on VCO frequency
+    // portamento=0 → instant; portamento=1 → ~2 s slew
+    const float portaCoeff = (portamento < 0.001f) ? 0.0f
+        : std::exp(-1.0f / (portamento * 2.0f * sampleRate));
+
+    // ── MIDI iterator ────────────────────────────────────────────────────────
     juce::MidiBuffer::Iterator it(midiMessages);
     juce::MidiMessage msg;
-    int samplePos;
-    bool hasMsg = it.getNextEvent(msg, samplePos);
+    int samplePos = 0;
+    bool hasMsg   = it.getNextEvent(msg, samplePos);
 
-    for (int i = 0; i < numSamples; ++i) {
-        // process all messages that occur at this sample
-        while (hasMsg && samplePos == i) {
-            if (msg.isNoteOn()) {
-                currentMidiNote_ = msg.getNoteNumber();
-                isNoteOn_ = true;
+    float* outL = buffer.getWritePointer(0);
+    const bool isStereo = (getTotalNumOutputChannels() > 1);
+
+    // ── Sample loop ──────────────────────────────────────────────────────────
+    for (int i = 0; i < numSamples; ++i)
+    {
+        // Process MIDI events at this sample position
+        while (hasMsg && samplePos == i)
+        {
+            if (msg.isNoteOn())
+            {
+                currentMidiNote_     = msg.getNoteNumber();
+                isNoteOn_            = true;
                 currentNoteVelocity_ = msg.getFloatVelocity();
-                // set oscillator frequency
-                float freq = DubSiren::DSP::MidiNoteToFrequency(currentMidiNote_);
-                dubOscillator_.SetFrequency(freq);
-                // scale base level by velocity (final amplitude will be multiplied by envelope)
-                float baseLevel = parameters_.getRawParameterValue("vcoLevel")->load();
-                dubOscillator_.SetLevel(baseLevel * currentNoteVelocity_);
-                // trigger envelope
+                dubOscillator_.SetLevel(vcoLevel * currentNoteVelocity_);
                 envelope_.NoteOn();
             }
-            else if (msg.isNoteOff() || (msg.isNoteOn() && msg.getVelocity() == 0)) {
-                int note = msg.getNoteNumber();
-                if (note == currentMidiNote_) {
-                    isNoteOn_ = false; // note state
+            else if (msg.isNoteOff() || (msg.isNoteOn() && msg.getVelocity() == 0))
+            {
+                if (msg.getNoteNumber() == currentMidiNote_)
+                {
+                    isNoteOn_        = false;
                     currentMidiNote_ = -1;
-                    // release envelope (allow smooth release tail)
                     envelope_.NoteOff();
                 }
             }
-
             hasMsg = it.getNextEvent(msg, samplePos);
         }
 
-        // Process LFOs per-sample for fast modulation
-        float lfo2Value = lfo2_.ProcessSample();
-        float lfo1Value = lfo1_.ProcessSample();
-        
-        // Get parameter values
-        float baseVCORate = parameters_.getRawParameterValue("vcoRate")->load();
-        float baseDelayTime = parameters_.getRawParameterValue("delayTime")->load();
-        float baseDelayFeedback = parameters_.getRawParameterValue("delayFeedback")->load();
-        float baseDelayWetDry = parameters_.getRawParameterValue("delayWetDry")->load();
-        int lfo1TargetIndex = parameters_.getRawParameterValue("lfo1Target")->load();
-        int lfo2TargetIndex = parameters_.getRawParameterValue("lfo2Target")->load();
-        float lfo1Amount = parameters_.getRawParameterValue("lfo1Amount")->load();
-        float lfo2Amount = parameters_.getRawParameterValue("lfo2Amount")->load();
-        float baseLFO1Rate = parameters_.getRawParameterValue("lfo1Rate")->load();
-        
-        float lfo2Mod = lfo2Value * lfo2Amount;
-        float currentLFO1Rate = baseLFO1Rate;
+        // ── LFO 2 — tick first (modulates LFO1 or delay) ─────────────────
+        const float lfo2Value = lfo2_.ProcessSample();
+        const float lfo2Mod   = lfo2Value * lfo2Amount;
+
+        float currentLFO1Rate   = baseLFO1Rate;
         float currentLFO1Amount = lfo1Amount;
-        
-        // Apply LFO2 modulation
-        LFO2Target lfo2Target = static_cast<LFO2Target>(lfo2TargetIndex);
-        if (lfo2Target == LFO2Target::LFO1Rate) {
-            float modulatedLFO1Rate = baseLFO1Rate * (1.0f + lfo2Mod * 3.0f);
-            currentLFO1Rate = juce::jlimit(0.1f, 80.0f, modulatedLFO1Rate);
-            lfo1_.SetRate(currentLFO1Rate);
-        } else if (lfo2Target == LFO2Target::LFO1Amount) {
-            currentLFO1Amount = juce::jlimit(0.0f, 1.0f, lfo1Amount + lfo2Mod * 0.5f);
-        } else if (lfo2Target == LFO2Target::DelayWetDry) {
-            baseDelayWetDry = juce::jlimit(0.0f, 1.0f, baseDelayWetDry + lfo2Mod * 0.3f);
-        }
-        
-        float lfo1Mod = lfo1Value * currentLFO1Amount;
-        
-        // Apply LFO1 modulation
-        LFO1Target lfo1Target = static_cast<LFO1Target>(lfo1TargetIndex);
-        if (lfo1Target == LFO1Target::VCORate) {
-            float modulatedVCORate = baseVCORate * (1.0f + lfo1Mod * 4.0f);
-            dubOscillator_.SetFrequency(juce::jlimit(20.0f, 2000.0f, modulatedVCORate));
-        } else if (lfo1Target == LFO1Target::DelayTime) {
-            float modulatedDelayTime = baseDelayTime * (1.0f + lfo1Mod * 0.5f);
-            dubDelay_.SetDelayTime(juce::jlimit(0.001f, 2.0f, modulatedDelayTime));
-        } else if (lfo1Target == LFO1Target::DelayFeedback) {
-            dubDelay_.SetFeedback(juce::jlimit(0.0f, 0.95f, baseDelayFeedback + lfo1Mod * 0.3f));
-        }
-        
-        dubDelay_.SetWetDry(baseDelayWetDry);
-        
-        float outSample = 0.0f;
-        // Process envelope per-sample
-        float envVal = envelope_.ProcessSample();
+        float currentDelayWetDry= baseDelayWetDry;
 
-        // Only generate oscillator while envelope is active (attack/sustain/decay/release)
-        if (envVal > 0.0f) {
-            outSample = dubOscillator_.ProcessSample() * envVal;
+        switch (static_cast<LFO2Target>(lfo2TargetIdx))
+        {
+            case LFO2Target::LFO1Rate:
+                currentLFO1Rate = juce::jlimit(0.1f, 80.0f,
+                    baseLFO1Rate * (1.0f + lfo2Mod * 3.0f));
+                lfo1_.SetRate(currentLFO1Rate);
+                break;
+            case LFO2Target::LFO1Amount:
+                currentLFO1Amount = juce::jlimit(0.0f, 1.0f,
+                    lfo1Amount + lfo2Mod * 0.5f);
+                break;
+            case LFO2Target::DelayWetDry:
+                currentDelayWetDry = juce::jlimit(0.0f, 1.0f,
+                    baseDelayWetDry + lfo2Mod * 0.3f);
+                break;
+            default:
+                break;
         }
 
-        outputData[i] = outSample;
+        // ── LFO 1 — tick after LFO2 so LFO2→LFO1rate is applied ─────────
+        const float lfo1Value = lfo1_.ProcessSample();
+        const float lfo1Mod   = lfo1Value * currentLFO1Amount;
+
+        // Effective VCO target rate for this sample (from MIDI or base param)
+        float targetVCORate = (currentMidiNote_ >= 0)
+            ? DubSiren::DSP::MidiNoteToFrequency(currentMidiNote_)
+            : baseVCORate;
+
+        float effectiveDelayTime     = baseDelayTime;
+        float effectiveDelayFeedback = baseDelayFeedback;
+
+        switch (static_cast<LFO1Target>(lfo1TargetIdx))
+        {
+            case LFO1Target::VCORate:
+                targetVCORate = juce::jlimit(20.0f, 2000.0f,
+                    targetVCORate * (1.0f + lfo1Mod * 4.0f));
+                break;
+            case LFO1Target::DelayTime:
+                effectiveDelayTime = juce::jlimit(0.001f, 2.0f,
+                    baseDelayTime * (1.0f + lfo1Mod * 0.5f));
+                break;
+            case LFO1Target::DelayFeedback:
+                effectiveDelayFeedback = juce::jlimit(0.0f, 0.95f,
+                    baseDelayFeedback + lfo1Mod * 0.3f);
+                break;
+            default:
+                break;
+        }
+
+        // ── Portamento slew on VCO frequency ─────────────────────────────
+        slewedVCOFreq_ = slewedVCOFreq_ * portaCoeff
+                       + targetVCORate  * (1.0f - portaCoeff);
+        dubOscillator_.SetFrequency(slewedVCOFreq_);
+
+        // Apply delay settings for this sample
+        dubDelay_.SetDelayTime(effectiveDelayTime);
+        dubDelay_.SetFeedback(effectiveDelayFeedback);
+        dubDelay_.SetWetDry(currentDelayWetDry);
+
+        // ── Oscillator + envelope ─────────────────────────────────────────
+        const float envVal = envelope_.ProcessSample();
+        const float osc    = (envVal > 0.0f) ? dubOscillator_.ProcessSample() * envVal
+                                              : 0.0f;
+
+        outL[i] = osc;
     }
 
-    // Apply delay effect to the generated audio (delay will produce tails)
-    dubDelay_.Process(outputData, static_cast<size_t>(numSamples));
+    // ── Apply delay to the mono mix ───────────────────────────────────────────
+    dubDelay_.Process(outL, static_cast<size_t>(numSamples));
+
+    // ── Copy to right channel for stereo output ───────────────────────────────
+    if (isStereo)
+        buffer.copyFrom(1, 0, buffer, 0, 0, numSamples);
 }
 
 //==============================================================================
-bool DubSirenProcessor::hasEditor() const
-{
-    return true;
-}
+bool DubSirenProcessor::hasEditor() const { return true; }
 
 juce::AudioProcessorEditor* DubSirenProcessor::createEditor()
 {
@@ -316,14 +302,11 @@ void DubSirenProcessor::getStateInformation(juce::MemoryBlock& destData)
 void DubSirenProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
-
-    if (xmlState.get() != nullptr)
-        if (xmlState->hasTagName(parameters_.state.getType()))
-            parameters_.replaceState(juce::ValueTree::fromXml(*xmlState));
+    if (xmlState && xmlState->hasTagName(parameters_.state.getType()))
+        parameters_.replaceState(juce::ValueTree::fromXml(*xmlState));
 }
 
 //==============================================================================
-// This creates new instances of the plugin
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new DubSirenProcessor();

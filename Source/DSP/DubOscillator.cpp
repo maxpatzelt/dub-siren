@@ -5,71 +5,135 @@
 namespace DubSiren {
 namespace DSP {
 
-DubOscillator::DubOscillator()
-    : sampleRate_(44100.0f)
-    , frequency_(440.0f)
-    , level_(0.8f)
-    , phase_(0.0f)
-    , phaseIncrement_(0.0f)
-    , driftPhase_(0.0f)
-    , driftAmount_(0.002f) // Subtle analog drift
+// ── PolyBLEP correction ───────────────────────────────────────────────────────
+// Subtracts the BLEP from a naive waveform to remove the aliased step.
+// t  = normalised phase in [0, 1)
+// dt = phaseIncrement (normalised, = freq / sampleRate)
+float DubOscillator::polyBlep(float t, float dt)
 {
+    if (t < dt)
+    {
+        t /= dt;
+        return t + t - t * t - 1.0f;
+    }
+    else if (t > 1.0f - dt)
+    {
+        t = (t - 1.0f) / dt;
+        return t * t + t + t + 1.0f;
+    }
+    return 0.0f;
 }
 
-void DubOscillator::Init(float sampleRate) {
-    assert(sampleRate > 0.0f && "Sample rate must be positive");
-    sampleRate_ = sampleRate;
-    phaseIncrement_ = frequency_ / sampleRate_;
-    phase_ = 0.0f;
-    driftPhase_ = 0.0f;
+// ── xorshift32 PRNG ──────────────────────────────────────────────────────────
+float DubOscillator::xorshiftNoise()
+{
+    xstate_ ^= xstate_ << 13;
+    xstate_ ^= xstate_ >> 17;
+    xstate_ ^= xstate_ << 5;
+    return (static_cast<float>(xstate_) / 4294967295.0f) * 2.0f - 1.0f;
 }
 
-void DubOscillator::SetFrequency(float frequency) {
-    frequency_ = Clamp(frequency, kMinFrequency, kMaxFrequency);
-    phaseIncrement_ = frequency_ / sampleRate_;
+// ── Lifecycle ─────────────────────────────────────────────────────────────────
+DubOscillator::DubOscillator()
+    : sampleRate_    (44100.0f)
+    , frequency_     (440.0f)
+    , level_         (0.8f)
+    , phase_         (0.0f)
+    , phaseIncrement_(0.0f)
+    , waveform_      (Waveform::Square)
+    , driftPhase_    (0.0f)
+    , driftIncrement_(0.0f)
+    , driftAmount_   (0.0015f)
+    , xstate_        (1812433253u)   // non-zero seed
+{}
+
+void DubOscillator::Init(float sampleRate)
+{
+    assert(sampleRate > 0.0f);
+    sampleRate_      = sampleRate;
+    phaseIncrement_  = frequency_ / sampleRate_;
+    // Drift oscillator ~2.7 Hz regardless of sample rate
+    driftIncrement_  = 2.7f / sampleRate_;
+    phase_           = 0.0f;
+    driftPhase_      = 0.0f;
 }
 
-void DubOscillator::SetLevel(float level) {
+void DubOscillator::SetFrequency(float frequency)
+{
+    frequency_       = Clamp(frequency, kMinFrequency, kMaxFrequency);
+    phaseIncrement_  = frequency_ / sampleRate_;
+}
+
+void DubOscillator::SetLevel(float level)
+{
     level_ = Clamp(level, 0.0f, 1.0f);
 }
 
-void DubOscillator::Reset() {
-    phase_ = 0.0f;
+void DubOscillator::SetWaveform(Waveform w)
+{
+    waveform_ = w;
+}
+
+void DubOscillator::Reset()
+{
+    phase_      = 0.0f;
     driftPhase_ = 0.0f;
 }
 
-float DubOscillator::GenerateSquareWave() {
-    // Add subtle analog drift for gritty character
-    driftPhase_ += 0.0001f;
-    float drift = std::sin(driftPhase_) * driftAmount_;
+// ── Core generator ────────────────────────────────────────────────────────────
+float DubOscillator::GenerateSample()
+{
+    // Drift: slow sine modulation on phase for organic pitch instability
+    driftPhase_ = WrapPhase(driftPhase_ + driftIncrement_);
+    float drift = std::sin(kTwoPi * driftPhase_) * driftAmount_;
 
-    float modPhase = phase_ + drift;
-    modPhase = WrapPhase(modPhase);
+    // Effective phase includes drift
+    float p   = WrapPhase(phase_ + drift);
+    float dt  = phaseIncrement_;
+    float out = 0.0f;
 
-    // Square wave with slight softening
-    float square = (modPhase < 0.5f) ? 1.0f : -1.0f;
+    switch (waveform_)
+    {
+        case Waveform::Square:
+        {
+            out  = (p < 0.5f) ? 1.0f : -1.0f;
+            out += polyBlep(p,                    dt);   // rising edge at 0
+            out -= polyBlep(WrapPhase(p + 0.5f),  dt);   // falling edge at 0.5
+            break;
+        }
+        case Waveform::Saw:
+        {
+            out  = 2.0f * p - 1.0f;
+            out -= polyBlep(p, dt);
+            break;
+        }
+        case Waveform::Triangle:
+        {
+            // Integrate a square wave: naturally smooth, no polyBLEP needed
+            out = 4.0f * std::abs(p - std::floor(p + 0.5f)) - 1.0f;
+            break;
+        }
+    }
 
-    // Add tiny bit of noise for analog character
-    float noise = (static_cast<float>(rand()) / RAND_MAX - 0.5f) * 0.01f;
+    // Tiny xorshift noise for that vintage transistor buzz (+/– 0.5 %)
+    out += xorshiftNoise() * 0.005f;
 
-    return (square + noise) * level_;
+    return out * level_;
 }
 
-float DubOscillator::ProcessSample() {
-    float sample = GenerateSquareWave();
-
-    phase_ += phaseIncrement_;
-    phase_ = WrapPhase(phase_);
-
+float DubOscillator::ProcessSample()
+{
+    float sample = GenerateSample();
+    phase_  += phaseIncrement_;
+    phase_   = WrapPhase(phase_);
     return sample;
 }
 
-void DubOscillator::Process(float* output, size_t numSamples) {
-    assert(output != nullptr && "Output buffer cannot be null");
-
-    for (size_t i = 0; i < numSamples; ++i) {
+void DubOscillator::Process(float* output, size_t numSamples)
+{
+    assert(output != nullptr);
+    for (size_t i = 0; i < numSamples; ++i)
         output[i] = ProcessSample();
-    }
 }
 
 } // namespace DSP

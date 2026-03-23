@@ -4,63 +4,88 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "PluginProcessor.h"
 
-// Custom LookAndFeel for rasta-colored solid knobs
-class RastaKnobLookAndFeel : public juce::LookAndFeel_V4
+// ── Dark dub-studio LookAndFeel ──────────────────────────────────────────────
+// Inspired by vintage Jamaican studio rack gear:
+//  dark charcoal chassis, amber arc, cream indicator line, bakelite cap.
+class DubLookAndFeel : public juce::LookAndFeel_V4
 {
 public:
-    RastaKnobLookAndFeel();
-    void drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height,
-                         float sliderPos, float rotaryStartAngle, float rotaryEndAngle,
-                         juce::Slider& slider) override;
-    
-    void setKnobColour(int index);
-    
+    DubLookAndFeel();
+
+    void drawRotarySlider(juce::Graphics& g,
+                          int x, int y, int width, int height,
+                          float sliderPos,
+                          float rotaryStartAngle, float rotaryEndAngle,
+                          juce::Slider& slider) override;
+
+    void drawComboBox(juce::Graphics& g, int width, int height,
+                      bool isButtonDown, int buttonX, int buttonY,
+                      int buttonW, int buttonH,
+                      juce::ComboBox&) override;
+
+    void drawLabel(juce::Graphics& g, juce::Label& label) override;
+
 private:
-    juce::Colour currentKnobColour;
+    // Palette constants
+    static constexpr uint32_t CHASSIS   = 0xFF161210;  // near-black warm
+    static constexpr uint32_t PANEL     = 0xFF1E1B16;  // section body
+    static constexpr uint32_t AMBER     = 0xFFFFB300;  // arc / accent
+    static constexpr uint32_t AMBER_DIM = 0xFF3A2800;  // arc track
+    static constexpr uint32_t CREAM     = 0xFFCFC9A8;  // indicator / label
+    static constexpr uint32_t KNOB_DARK = 0xFF252018;  // knob body
+    static constexpr uint32_t KNOB_RIM  = 0xFF383020;  // knob outer ring
+    static constexpr uint32_t GREEN_LED = 0xFF39FF14;  // phosphor green accent
 };
 
-class DubSirenEditor  : public juce::AudioProcessorEditor
+// ── Editor ───────────────────────────────────────────────────────────────────
+class DubSirenEditor : public juce::AudioProcessorEditor
 {
 public:
-    DubSirenEditor(DubSirenProcessor&);
+    explicit DubSirenEditor(DubSirenProcessor&);
     ~DubSirenEditor() override;
 
     void paint(juce::Graphics&) override;
     void resized() override;
 
 private:
+    // ── Helper: draw one engraved section box ───────────────────────────────
+    void drawSection(juce::Graphics& g,
+                     juce::Rectangle<int> bounds,
+                     const juce::String& title) const;
+
     DubSirenProcessor& processorRef;
+    DubLookAndFeel     dubLAF;
 
-    // Controls
-    juce::Slider vcoRateSlider, vcoLevelSlider;
-    juce::Slider delayTimeSlider, delayFeedbackSlider, delayWetDrySlider;
-    juce::Slider lfo1RateSlider, lfo1AmountSlider;
-    juce::Slider lfo2RateSlider, lfo2AmountSlider;
+    // VCO controls
+    juce::Slider   vcoRateSlider, vcoLevelSlider, portamentoSlider;
+    juce::ComboBox vcoWaveformBox;
+    juce::Label    vcoRateLabel, vcoLevelLabel, portamentoLabel, vcoWaveLabel;
 
-    juce::ComboBox lfo1TargetBox, lfo2TargetBox;
-    
-    // Static labels for knobs
-    juce::Label vcoRateLabel, vcoLevelLabel;
-    juce::Label delayTimeLabel, delayFeedbackLabel, delayWetDryLabel;
-    juce::Label lfo1RateLabel, lfo1AmountLabel;
-    juce::Label lfo2RateLabel, lfo2AmountLabel;
+    // Delay controls
+    juce::Slider   delayTimeSlider, delayFeedbackSlider, delayWetDrySlider;
+    juce::Label    delayTimeLabel, delayFeedbackLabel, delayWetDryLabel;
 
-    using Attachment = juce::AudioProcessorValueTreeState::SliderAttachment;
-    using ChoiceAttachment = juce::AudioProcessorValueTreeState::ComboBoxAttachment;
+    // LFO 1 controls
+    juce::Slider   lfo1RateSlider, lfo1AmountSlider;
+    juce::ComboBox lfo1TargetBox, lfo1WaveformBox;
+    juce::Label    lfo1RateLabel, lfo1AmountLabel, lfo1TargetLabel, lfo1WaveLabel;
 
-    std::unique_ptr<Attachment> vcoRateAttach, vcoLevelAttach;
-    std::unique_ptr<Attachment> delayTimeAttach, delayFeedbackAttach, delayWetDryAttach;
-    std::unique_ptr<Attachment> lfo1RateAttach, lfo1AmountAttach;
-    std::unique_ptr<Attachment> lfo2RateAttach, lfo2AmountAttach;
+    // LFO 2 controls
+    juce::Slider   lfo2RateSlider, lfo2AmountSlider;
+    juce::ComboBox lfo2TargetBox, lfo2WaveformBox;
+    juce::Label    lfo2RateLabel, lfo2AmountLabel, lfo2TargetLabel, lfo2WaveLabel;
 
-    std::unique_ptr<ChoiceAttachment> lfo1TargetAttach, lfo2TargetAttach;
+    using SliderAttach = juce::AudioProcessorValueTreeState::SliderAttachment;
+    using ChoiceAttach = juce::AudioProcessorValueTreeState::ComboBoxAttachment;
 
-    // Background panel image
-    juce::Image panelImage;
-    
-    // Custom LookAndFeel instances for each knob with different rasta colors
-    std::array<std::unique_ptr<RastaKnobLookAndFeel>, 9> knobLookAndFeels;
+    std::unique_ptr<SliderAttach> vcoRateAttach, vcoLevelAttach, portamentoAttach;
+    std::unique_ptr<SliderAttach> delayTimeAttach, delayFeedbackAttach, delayWetDryAttach;
+    std::unique_ptr<SliderAttach> lfo1RateAttach, lfo1AmountAttach;
+    std::unique_ptr<SliderAttach> lfo2RateAttach, lfo2AmountAttach;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DubSirenEditor)
+    std::unique_ptr<ChoiceAttach> vcoWaveAttach;
+    std::unique_ptr<ChoiceAttach> lfo1TargetAttach, lfo1WaveAttach;
+    std::unique_ptr<ChoiceAttach> lfo2TargetAttach, lfo2WaveAttach;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DubSirenEditor)
 };
-
