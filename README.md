@@ -1,6 +1,6 @@
 # Dub Siren — JUCE VST3 Synthesizer
 
-<img width="996" height="780" alt="dubsirenpic" src="https://github.com/user-attachments/assets/8838a1b0-ff4a-4028-a777-d80df43014ed" />
+<img width="996" height="780" alt="dubsirenpic" src=dubsiren.PNG />
 
 
 "Dub Siren": a mono, dub-inspired VST3 with a gritty VCO, two free-running LFOs, and a wobbling dub delay.
