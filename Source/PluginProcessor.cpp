@@ -11,96 +11,18 @@ DubSirenProcessor::createParameterLayout()
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
 
-    // ── VCO ────────────────────────────────────────────────────────────────
+    // 5 macro knobs — all normalised 0..1
+    // Everything in the DSP is derived from these at block rate
     layout.add(std::make_unique<juce::AudioParameterFloat>(
-        "vcoRate", "VCO Rate",
-        juce::NormalisableRange<float>(30.0f, 9000.0f, 0.1f, 0.3f), 440.0f));
-
+        "macro1", "PITCH",  juce::NormalisableRange<float>(0.0f, 1.0f), 0.38f));
     layout.add(std::make_unique<juce::AudioParameterFloat>(
-        "vcoLevel", "VCO Level",
-        juce::NormalisableRange<float>(0.0f, 1.0f), 0.8f));
-
-    layout.add(std::make_unique<juce::AudioParameterChoice>(
-        "vcoWaveform", "VCO Waveform",
-        juce::StringArray{ "Square", "Saw", "Triangle" }, 0));
-
+        "macro2", "SWEEP",  juce::NormalisableRange<float>(0.0f, 1.0f), 0.45f));
     layout.add(std::make_unique<juce::AudioParameterFloat>(
-        "portamento", "Portamento",
-        juce::NormalisableRange<float>(0.0f, 1.0f), 0.0f));
-
-    // ── Delay ──────────────────────────────────────────────────────────────
+        "macro3", "WOBBLE", juce::NormalisableRange<float>(0.0f, 1.0f), 0.30f));
     layout.add(std::make_unique<juce::AudioParameterFloat>(
-        "delayTime", "Delay Time",
-        juce::NormalisableRange<float>(0.05f, 2.0f, 0.001f, 0.5f), 0.5f));
-
+        "macro4", "ECHO",   juce::NormalisableRange<float>(0.0f, 1.0f), 0.50f));
     layout.add(std::make_unique<juce::AudioParameterFloat>(
-        "delayFeedback", "Delay Feedback",
-        juce::NormalisableRange<float>(0.0f, 0.99f), 0.55f));
-
-    layout.add(std::make_unique<juce::AudioParameterFloat>(
-        "delayWetDry", "Delay Wet/Dry",
-        juce::NormalisableRange<float>(0.0f, 1.0f), 0.45f));
-
-    // ── LFO 1 ──────────────────────────────────────────────────────────────
-    layout.add(std::make_unique<juce::AudioParameterFloat>(
-        "lfo1Rate", "LFO 1 Rate",
-        juce::NormalisableRange<float>(0.05f, 12.0f, 0.01f, 0.5f), 1.5f));
-
-    layout.add(std::make_unique<juce::AudioParameterFloat>(
-        "lfo1Amount", "LFO 1 Amount",
-        juce::NormalisableRange<float>(0.0f, 1.0f), 0.5f));
-
-    layout.add(std::make_unique<juce::AudioParameterChoice>(
-        "lfo1Target", "LFO 1 Target",
-        juce::StringArray{ "None", "VCO Rate", "Delay", "Sample Rate", "Filter" }, 0));
-
-    layout.add(std::make_unique<juce::AudioParameterChoice>(
-        "lfo1Waveform", "LFO 1 Waveform",
-        juce::StringArray{ "Sine", "Tri", "Square", "S+H" }, 0));
-
-    // ── LFO 2 ──────────────────────────────────────────────────────────────
-    layout.add(std::make_unique<juce::AudioParameterFloat>(
-        "lfo2Rate", "LFO 2 Rate",
-        juce::NormalisableRange<float>(0.05f, 12.0f, 0.01f, 0.5f), 0.3f));
-
-    layout.add(std::make_unique<juce::AudioParameterFloat>(
-        "lfo2Amount", "LFO 2 Amount",
-        juce::NormalisableRange<float>(0.0f, 1.0f), 0.3f));
-
-    layout.add(std::make_unique<juce::AudioParameterChoice>(
-        "lfo2Target", "LFO 2 Target",
-        juce::StringArray{ "None", "LFO1 Rate", "LFO1 Amount", "Delay", "Sample Rate" }, 0));
-
-    layout.add(std::make_unique<juce::AudioParameterChoice>(
-        "lfo2Waveform", "LFO 2 Waveform",
-        juce::StringArray{ "Sine", "Tri", "Square", "S+H" }, 0));
-
-    // ── Sample ─────────────────────────────────────────────────────────────
-    layout.add(std::make_unique<juce::AudioParameterFloat>(
-        "sampleLevel", "Sample Level",
-        juce::NormalisableRange<float>(0.0f, 1.0f), 0.8f));
-
-    layout.add(std::make_unique<juce::AudioParameterFloat>(
-        "samplePlayRate", "Sample Play Rate",
-        juce::NormalisableRange<float>(0.1f, 4.0f, 0.01f, 0.5f), 1.0f));
-
-    // ── Filter (VCF) ───────────────────────────────────────────────────────
-    layout.add(std::make_unique<juce::AudioParameterFloat>(
-        "filterCutoff", "Filter Cutoff (SWEEP)",
-        juce::NormalisableRange<float>(200.0f, 9000.0f, 1.0f, 0.4f), 3500.0f));
-
-    layout.add(std::make_unique<juce::AudioParameterFloat>(
-        "filterResonance", "Filter Resonance",
-        juce::NormalisableRange<float>(0.0f, 1.0f), 0.35f));
-
-    layout.add(std::make_unique<juce::AudioParameterFloat>(
-        "filterDecay", "Filter Decay",
-        juce::NormalisableRange<float>(0.05f, 5.0f, 0.01f, 0.4f), 0.8f));
-
-    // ── MIDI target ────────────────────────────────────────────────────────
-    layout.add(std::make_unique<juce::AudioParameterChoice>(
-        "midiTarget", "MIDI Target",
-        juce::StringArray{ "VCO", "Sample", "Both" }, 0));
+        "macro5", "CHAOS",  juce::NormalisableRange<float>(0.0f, 1.0f), 0.20f));
 
     return layout;
 }
@@ -145,7 +67,7 @@ void DubSirenProcessor::prepareToPlay(double sampleRate, int /*samplesPerBlock*/
     envelope_.Init      (static_cast<float>(sampleRate));
 
     // Seed the slewedVCOFreq so portamento doesn't slide from 0 on first note
-    slewedVCOFreq_ = *parameters_.getRawParameterValue("vcoRate");
+    slewedVCOFreq_ = 440.0f;
 
     // Decode all embedded WAV samples (done once at prepare time, not audio thread)
     {
@@ -206,45 +128,64 @@ void DubSirenProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     const int   numSamples = buffer.getNumSamples();
     const float sampleRate = static_cast<float>(getSampleRate());
 
-    // ── Cache ALL parameter values at block boundary (never read per-sample) ──
-    const float baseVCORate      = *parameters_.getRawParameterValue("vcoRate");
-    const float vcoLevel         = *parameters_.getRawParameterValue("vcoLevel");
-    const int   vcoWaveformIdx   = static_cast<int>(*parameters_.getRawParameterValue("vcoWaveform"));
-    const float portamento       = *parameters_.getRawParameterValue("portamento");
+    // ── Derive all DSP parameters from 5 macro knobs ─────────────────────────
+    const float k1 = *parameters_.getRawParameterValue("macro1"); // PITCH
+    const float k2 = *parameters_.getRawParameterValue("macro2"); // SWEEP
+    const float k3 = *parameters_.getRawParameterValue("macro3"); // WOBBLE
+    const float k4 = *parameters_.getRawParameterValue("macro4"); // ECHO
+    const float k5 = *parameters_.getRawParameterValue("macro5"); // CHAOS
 
-    const float baseDelayTime    = *parameters_.getRawParameterValue("delayTime");
-    const float baseDelayFeedback= *parameters_.getRawParameterValue("delayFeedback");
-    const float baseDelayWetDry  = *parameters_.getRawParameterValue("delayWetDry");
+    // PITCH (k1): VCO frequency log 30–9000Hz, sample speed, filter brightness
+    const float baseVCORate       = 30.0f * std::pow(300.0f, k1);
+    const float baseSamplePlayRate = 0.3f + 1.7f * k1;
 
-    const float baseLFO1Rate     = *parameters_.getRawParameterValue("lfo1Rate");
-    const float lfo1Amount       = *parameters_.getRawParameterValue("lfo1Amount");
-    const int   lfo1TargetIdx    = static_cast<int>(*parameters_.getRawParameterValue("lfo1Target"));
-    const int   lfo1WaveformIdx  = static_cast<int>(*parameters_.getRawParameterValue("lfo1Waveform"));
+    // SWEEP (k2): filter cutoff log 200–8000Hz, resonance bell, waveform, level balance
+    const float filterSweep      = 200.0f * std::pow(40.0f, k2);
+    const float filterResonance  = juce::jlimit(0.0f, 0.98f, 4.0f * k2 * (1.0f - k2) * 1.2f);
+    const float filterDecay      = 0.1f + 1.8f * k2;
+    const float vcoLevel         = 0.35f + 0.65f * k2;
+    const float sampleLevel      = 1.0f - 0.55f * k2;
+    const int   vcoWaveformIdx   = (k2 < 0.33f) ? 0 : (k2 < 0.67f) ? 1 : 2; // Sq/Saw/Tri
 
-    const float baseLFO2Rate     = *parameters_.getRawParameterValue("lfo2Rate");
-    const float lfo2Amount       = *parameters_.getRawParameterValue("lfo2Amount");
-    const int   lfo2TargetIdx    = static_cast<int>(*parameters_.getRawParameterValue("lfo2Target"));
-    const int   lfo2WaveformIdx  = static_cast<int>(*parameters_.getRawParameterValue("lfo2Waveform"));
+    // WOBBLE (k3): LFO1 rate/depth log 0.05–12Hz, portamento bell, attenuates LFO2
+    const float baseLFO1Rate    = 0.05f * std::pow(240.0f, k3);
+    const float lfo1Amount      = k3 * 0.8f;
+    const float portamento      = 4.0f * k3 * (1.0f - k3) * 2.0f; // bell max ~2s
+    const float lfo2RateK3mod   = 1.0f - 0.55f * k3;
 
-    const float baseSamplePlayRate = *parameters_.getRawParameterValue("samplePlayRate");
-    const float sampleLevel        = *parameters_.getRawParameterValue("sampleLevel");
-    const float filterSweep        = *parameters_.getRawParameterValue("filterCutoff");
-    const float filterResonance    = *parameters_.getRawParameterValue("filterResonance");
-    const float filterDecay        = *parameters_.getRawParameterValue("filterDecay");
-    const int   midiTargetIdx      = static_cast<int>(*parameters_.getRawParameterValue("midiTarget"));
-    // 0=VCO, 1=Sample, 2=Both
-    const bool  midiToVCO    = (midiTargetIdx == 0 || midiTargetIdx == 2);
-    const bool  midiToSample = (midiTargetIdx == 1 || midiTargetIdx == 2);
+    // ECHO (k4): delay time log 0.05–1.5s, feedback/wet, attenuates LFO2
+    const float baseDelayTime     = 0.05f * std::pow(30.0f, k4);
+    const float baseDelayFeedback = 0.3f + 0.6f * k4;
+    const float baseDelayWetDry   = 0.1f + 0.5f * k4;
+    const float lfo2RateK4mod     = 1.0f - 0.4f * k4;
 
-    // ── Apply waveform / rate selections (block-rate, not per-sample) ────────
+    // CHAOS (k5): LFO2 rate log 0.05–12Hz (inversely modulated by k3+k4),
+    //             boosts LFO1, escalates LFO2 target
+    const float lfo2Rate     = juce::jlimit(0.05f, 12.0f,
+        0.05f * std::pow(240.0f, k5) * lfo2RateK3mod * lfo2RateK4mod);
+    const float lfo2Amount   = k5 * 0.9f;
+    // CHAOS amplifies LFO1 rate further
+    const float lfo1Rate     = juce::jlimit(0.05f, 12.0f, baseLFO1Rate * (1.0f + k5 * 1.5f));
+    // LFO2 target escalates: None → LFO1Rate → Delay
+    const int   lfo2TargetIdx    = (k5 < 0.33f) ? 0 : (k5 < 0.66f) ? 1 : 3;
+    // LFO1 always modulates VCO rate; LFO2 gets S+H waveform at high CHAOS
+    const int   lfo1TargetIdx    = 1; // LFO1Target::VCORate
+    const int   lfo1WaveformIdx  = 0; // Sine
+    const int   lfo2WaveformIdx  = (k5 > 0.7f) ? 3 : 0; // S+H or Sine
+
+    // MIDI always triggers both VCO and sample
+    const bool midiToVCO    = true;
+    const bool midiToSample = true;
+
+    // ── Apply waveform / rate selections (block-rate, not per-sample) ─────────
     dubOscillator_.SetWaveform(static_cast<DubSiren::DSP::DubOscillator::Waveform>(vcoWaveformIdx));
     dubOscillator_.SetLevel(vcoLevel);
 
     lfo1_.SetWaveform(static_cast<DubSiren::DSP::LFO::Waveform>(lfo1WaveformIdx));
-    lfo1_.SetRate(baseLFO1Rate);
+    lfo1_.SetRate(lfo1Rate);
 
     lfo2_.SetWaveform(static_cast<DubSiren::DSP::LFO::Waveform>(lfo2WaveformIdx));
-    lfo2_.SetRate(baseLFO2Rate);
+    lfo2_.SetRate(lfo2Rate);
 
     // Apply base sample playback rate, compensating for source vs host sample rate
     const float srcRate  = static_cast<float>(sampleSourceRates_[currentSampleIdx_]);
@@ -358,7 +299,7 @@ void DubSirenProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         const float lfo2Mod   = lfo2Value * lfo2Amount;
 
         // Mutable working values — LFO2 may adjust before LFO1 reads them
-        float currentLFO1Rate    = baseLFO1Rate;
+        float currentLFO1Rate    = lfo1Rate;
         float currentLFO1Amount  = lfo1Amount;
         float effectiveDelayTime     = baseDelayTime;
         float effectiveDelayFeedback = baseDelayFeedback;
@@ -370,7 +311,7 @@ void DubSirenProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         {
             case LFO2Target::LFO1Rate:
                 currentLFO1Rate = juce::jlimit(0.05f, 12.0f,
-                    baseLFO1Rate * (1.0f + lfo2Mod * 3.0f));
+                    lfo1Rate * (1.0f + lfo2Mod * 3.0f));
                 lfo1_.SetRate(currentLFO1Rate);
                 break;
             case LFO2Target::LFO1Amount:
