@@ -122,23 +122,7 @@ Individual test categories:
 - **Oscillator Tests**: Waveform generation, frequency accuracy, anti-aliasing
 - **Envelope Tests**: ADSR stages, gate behavior, denormal prevention
 
-## Code Style
-
-- **C++17** standard with modern idioms
-- **Explicit types**: No auto-abuse, clear intent
-- **Comments explain why**, not what
-- **No mystical DSP**: Every algorithm is understandable
-- **RAII and smart pointers** where appropriate
-
 ## Architecture Notes
-
-### DSP Core Design
-
-Inspired by Mutable Instruments:
-- **State separation**: DSP objects contain no JUCE dependencies
-- **Sample-rate agnostic**: All components accept sample rate as parameter
-- **Block processing**: Efficient buffer-based rendering
-- **Explicit state management**: Clear Init(), Reset(), Process() methods
 
 ### Oscillator
 
@@ -160,26 +144,6 @@ Inspired by Mutable Instruments:
 - MIDI note → frequency conversion
 - Velocity scaling
 - Ready for filter/modulation additions
-
-## Roadmap
-
-### Phase 2 (Near Future)
-- [ ] Add GUI controls (waveform selector, ADSR sliders)
-- [ ] Parameter automation via AudioProcessorValueTreeState
-- [ ] Preset save/load system
-- [ ] Oscilloscope visualizer
-
-### Phase 3 (Advanced)
-- [ ] Polyphonic voice management (4-8 voices)
-- [ ] Low-pass/high-pass filters
-- [ ] LFO modulation sources
-- [ ] Modulation matrix routing
-
-### Phase 4 (Experimental)
-- [ ] Wavetable synthesis
-- [ ] Modal synthesis (resonator bank)
-- [ ] Granular synthesis
-- [ ] CV-style modulation (Mutable-inspired)
 
 ## License
 
