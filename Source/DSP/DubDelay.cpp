@@ -34,7 +34,7 @@ void DubDelay::SetDelayTime(float timeSeconds) {
 }
 
 void DubDelay::SetFeedback(float feedback) {
-    feedback_ = Clamp(feedback, 0.0f, 0.95f); // Limit to prevent runaway
+    feedback_ = Clamp(feedback, 0.0f, 0.99f); // Up to 0.99 for self-oscillation
 }
 
 void DubDelay::SetWetDry(float wetDry) {
@@ -57,17 +57,22 @@ float DubDelay::ProcessSample(float input) {
     float modulatedDelayTime = delayTimeSeconds_ * (1.0f + wobble);
     modulatedDelayTime = Clamp(modulatedDelayTime, 0.001f, 2.0f);
 
-    // Calculate read position
-    size_t delaySamples = static_cast<size_t>(modulatedDelayTime * sampleRate_);
-    delaySamples = std::min(delaySamples, bufferSize_ - 1);
+    // Fractional read position — linear interpolation prevents crackle on time changes
+    float delayFloat = modulatedDelayTime * sampleRate_;
+    if (delayFloat >= static_cast<float>(bufferSize_ - 1))
+        delayFloat = static_cast<float>(bufferSize_ - 2);
+    const size_t delayInt = static_cast<size_t>(delayFloat);
+    const float  frac     = delayFloat - static_cast<float>(delayInt);
 
-    size_t readIndex = (writeIndex_ + bufferSize_ - delaySamples) % bufferSize_;
+    const size_t r0 = (writeIndex_ + bufferSize_ - delayInt)      % bufferSize_;
+    const size_t r1 = (writeIndex_ + bufferSize_ - delayInt - 1u) % bufferSize_;
+    const float delayedSample = delayBuffer_[r0] * (1.0f - frac) + delayBuffer_[r1] * frac;
 
-    // Read delayed sample
-    float delayedSample = delayBuffer_[readIndex];
-
-    // Write new sample with feedback
-    delayBuffer_[writeIndex_] = input + (delayedSample * feedback_);
+    // Write new sample with feedback — soft saturate the feedback path
+    // tanh-style soft clip: keeps signal warm, prevents hard clipping runaway
+    float feedbackSignal = delayedSample * feedback_;
+    feedbackSignal = feedbackSignal / (1.0f + std::abs(feedbackSignal));  // soft clip
+    delayBuffer_[writeIndex_] = input + feedbackSignal;
 
     // Advance write pointer
     writeIndex_ = (writeIndex_ + 1) % bufferSize_;

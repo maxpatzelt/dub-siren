@@ -5,6 +5,7 @@
 #include "DSP/LFO.h"
 #include "DSP/DubDelay.h"
 #include "DSP/Envelope.h"
+#include "DSP/SamplePlayer.h"
 
 /**
  * Dub Siren VST Processor  v2.0
@@ -54,9 +55,16 @@ public:
 
     juce::AudioProcessorValueTreeState& getParameters() { return parameters_; }
 
-    // LFO routing enums (kept public so the editor can label combo items correctly)
-    enum class LFO1Target { None = 0, VCORate, DelayTime, DelayFeedback };
-    enum class LFO2Target { None = 0, LFO1Rate, LFO1Amount, DelayWetDry };
+    void triggerButtonOn();
+    void triggerButtonOff();
+
+    void sampleButtonTrigger();
+    void selectSample(int index);
+    static constexpr int getNumSamples() { return 14; }
+
+    // LFO routing enums — must match choice parameter order in createParameterLayout()
+    enum class LFO1Target { None = 0, VCORate, Delay, SampleRate, Filter };
+    enum class LFO2Target { None = 0, LFO1Rate, LFO1Amount, Delay, SampleRate };
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
@@ -67,6 +75,13 @@ private:
     DubSiren::DSP::LFO           lfo2_;
     DubSiren::DSP::DubDelay      dubDelay_;
     DubSiren::DSP::Envelope      envelope_;
+    DubSiren::DSP::SamplePlayer  samplePlayer_;
+
+    // Decoded sample buffers — populated once in prepareToPlay
+    static constexpr int NUM_SAMPLES = 14;
+    juce::AudioBuffer<float>     sampleBuffers_[NUM_SAMPLES];
+    double                       sampleSourceRates_[NUM_SAMPLES] = {};
+    int                          currentSampleIdx_ = 0;
 
     // Parameter management
     juce::AudioProcessorValueTreeState parameters_;
@@ -78,6 +93,19 @@ private:
 
     // Portamento (1-pole slew on VCO frequency)
     float slewedVCOFreq_      = 440.0f;
+
+    // State-variable filter (Chamberlin SVF) — VCO signal path only
+    float filterLow_          = 0.0f;
+    float filterBand_         = 0.0f;
+    float currentFilterCutoff_= 3500.0f;
+    bool  filterDecaying_     = false;
+
+    // Button trigger — written from UI thread, consumed in audio thread
+    std::atomic<bool> buttonNoteOnPending_  { false };
+    std::atomic<bool> buttonNoteOffPending_ { false };
+    std::atomic<bool> sampleTriggerPending_  { false };
+    std::atomic<int>  sampleSelectPending_   { -1 };   // -1 = no change
+    std::atomic<bool> sampleLooping_         { false };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DubSirenProcessor)
 };

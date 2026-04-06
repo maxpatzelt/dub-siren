@@ -25,6 +25,13 @@ public:
 
     void drawLabel(juce::Graphics& g, juce::Label& label) override;
 
+    void drawButtonBackground(juce::Graphics& g, juce::Button& button,
+                              const juce::Colour&,
+                              bool isMouseOverButton, bool isButtonDown) override;
+
+    void drawButtonText(juce::Graphics& g, juce::TextButton& button,
+                        bool isMouseOverButton, bool isButtonDown) override;
+
 private:
     // Palette constants
     static constexpr uint32_t CHASSIS   = 0xFF161210;  // near-black warm
@@ -56,6 +63,13 @@ private:
     DubSirenProcessor& processorRef;
     DubLookAndFeel     dubLAF;
 
+    juce::TextButton triggerButton;
+    juce::TextButton sampleButton;
+    juce::ComboBox   sampleSelectBox;
+    juce::ComboBox   midiTargetBox;
+    juce::TextButton randomizeButton;
+    bool             buttonIsDown_ = false;
+
     // VCO controls
     juce::Slider   vcoRateSlider, vcoLevelSlider, portamentoSlider;
     juce::ComboBox vcoWaveformBox;
@@ -75,6 +89,14 @@ private:
     juce::ComboBox lfo2TargetBox, lfo2WaveformBox;
     juce::Label    lfo2RateLabel, lfo2AmountLabel, lfo2TargetLabel, lfo2WaveLabel;
 
+    // Sample controls
+    juce::Slider   sampleLevelSlider, sampleRateSlider;
+    juce::Label    sampleLevelLabel,  sampleRateLabel;
+
+    // Filter controls
+    juce::Slider   filterCutoffSlider, filterResonanceSlider, filterDecaySlider;
+    juce::Label    filterCutoffLabel,  filterResonanceLabel,  filterDecayLabel;
+
     using SliderAttach = juce::AudioProcessorValueTreeState::SliderAttachment;
     using ChoiceAttach = juce::AudioProcessorValueTreeState::ComboBoxAttachment;
 
@@ -82,10 +104,13 @@ private:
     std::unique_ptr<SliderAttach> delayTimeAttach, delayFeedbackAttach, delayWetDryAttach;
     std::unique_ptr<SliderAttach> lfo1RateAttach, lfo1AmountAttach;
     std::unique_ptr<SliderAttach> lfo2RateAttach, lfo2AmountAttach;
+    std::unique_ptr<SliderAttach> sampleLevelAttach, sampleRateAttach;
+    std::unique_ptr<SliderAttach> filterCutoffAttach, filterResonanceAttach, filterDecayAttach;
 
     std::unique_ptr<ChoiceAttach> vcoWaveAttach;
     std::unique_ptr<ChoiceAttach> lfo1TargetAttach, lfo1WaveAttach;
     std::unique_ptr<ChoiceAttach> lfo2TargetAttach, lfo2WaveAttach;
+    std::unique_ptr<ChoiceAttach> midiTargetAttach;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DubSirenEditor)
 };

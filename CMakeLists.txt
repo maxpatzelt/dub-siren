@@ -33,10 +33,25 @@ juce_add_plugin(DubSiren
     COPY_PLUGIN_AFTER_BUILD FALSE
     VST2_CATEGORY kPlugSynthInstrument)
 
-# Add binary resources (panel image)
+# Add binary resources
 juce_add_binary_data(DubSirenResources
     SOURCES
-        Resources/panel.jpg)
+        Resources/panel.jpg
+        Resources/background.jfif
+        Resources/ds01.wav
+        Resources/ds02.wav
+        Resources/ds03.wav
+        Resources/ds04.wav
+        Resources/ds05.wav
+        Resources/ds06.wav
+        Resources/ds07.wav
+        Resources/ds08.wav
+        Resources/ds09.wav
+        Resources/ds10.wav
+        Resources/ds11.wav
+        Resources/ds12.wav
+        Resources/ds13.wav
+        Resources/ds14.wav)
 
 # Add source files
 target_sources(DubSiren
@@ -57,7 +72,8 @@ target_sources(DubSiren
         Source/DSP/LFO.h
         Source/DSP/DubDelay.cpp
         Source/DSP/DubDelay.h
-        Source/DSP/Common.h)
+        Source/DSP/Common.h
+        Source/DSP/SamplePlayer.h)
 
 # Compile definitions
 target_compile_definitions(DubSiren
@@ -77,6 +93,7 @@ endif()
 target_link_libraries(DubSiren
     PRIVATE
         juce::juce_audio_utils
+        juce::juce_audio_formats
         juce::juce_dsp
         DubSirenResources
     PUBLIC

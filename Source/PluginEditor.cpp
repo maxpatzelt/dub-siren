@@ -1,4 +1,5 @@
 #include "PluginEditor.h"
+#include <BinaryData.h>
 
 // ============================================================================
 // DubLookAndFeel
@@ -10,7 +11,7 @@ DubLookAndFeel::DubLookAndFeel()
     setColour(juce::Slider::rotarySliderFillColourId,    juce::Colour(AMBER));
     setColour(juce::Slider::rotarySliderOutlineColourId, juce::Colour(AMBER_DIM));
     setColour(juce::Label::textColourId,                 juce::Colour(CREAM));
-    setColour(juce::ComboBox::backgroundColourId,        juce::Colour(0xFF141210));
+    setColour(juce::ComboBox::backgroundColourId,        juce::Colour(0x88141210));
     setColour(juce::ComboBox::textColourId,              juce::Colour(AMBER));
     setColour(juce::ComboBox::outlineColourId,           juce::Colour(0xFF3A3020));
     setColour(juce::ComboBox::arrowColourId,             juce::Colour(AMBER));
@@ -109,10 +110,10 @@ void DubLookAndFeel::drawComboBox(juce::Graphics& g, int width, int height,
 {
     auto bounds = juce::Rectangle<float>(0.0f, 0.0f, (float)width, (float)height);
 
-    g.setColour(juce::Colour(0xFF141210));
+    g.setColour(juce::Colour(0x88141210));
     g.fillRoundedRectangle(bounds, 3.0f);
 
-    g.setColour(juce::Colour(0xFF3A3020));
+    g.setColour(juce::Colour(0xAA4A3A18));
     g.drawRoundedRectangle(bounds.reduced(0.5f), 3.0f, 1.0f);
 
     // Arrow
@@ -132,6 +133,43 @@ void DubLookAndFeel::drawLabel(juce::Graphics& g, juce::Label& label)
     g.setColour(label.findColour(juce::Label::textColourId));
     g.setFont(label.getFont());
     g.drawText(label.getText(), label.getLocalBounds(), label.getJustificationType(), false);
+}
+
+void DubLookAndFeel::drawButtonBackground(juce::Graphics& g, juce::Button& button,
+                                          const juce::Colour&,
+                                          bool isMouseOverButton, bool isButtonDown)
+{
+    auto bounds = button.getLocalBounds().toFloat().reduced(1.0f);
+
+    // Body gradient — brighter when held
+    juce::ColourGradient body(
+        juce::Colour(isButtonDown ? 0xFF4A3200 : 0xFF1E1810), bounds.getX(), bounds.getY(),
+        juce::Colour(isButtonDown ? 0xFF261800 : 0xFF0E0C08), bounds.getX(), bounds.getBottom(), false);
+    g.setGradientFill(body);
+    g.fillRoundedRectangle(bounds, 3.0f);
+
+    // Border — amber when held, dim when idle
+    const auto borderColour = isButtonDown  ? juce::Colour(0xFFFFB300)
+                            : isMouseOverButton ? juce::Colour(0xFF705030)
+                                               : juce::Colour(0xFF3A2800);
+    g.setColour(borderColour);
+    g.drawRoundedRectangle(bounds.reduced(0.5f), 3.0f, 1.2f);
+
+    // Amber glow halo when held
+    if (isButtonDown)
+    {
+        g.setColour(juce::Colour(0x28FFB300));
+        g.fillRoundedRectangle(bounds.expanded(3.0f), 6.0f);
+    }
+}
+
+void DubLookAndFeel::drawButtonText(juce::Graphics& g, juce::TextButton& button,
+                                    bool /*isMouseOver*/, bool isButtonDown)
+{
+    g.setColour(juce::Colour(isButtonDown ? 0xFFFFB300 : 0xFF806040));
+    g.setFont(juce::Font(juce::Font::getDefaultMonospacedFontName(), 10.0f, juce::Font::bold));
+    g.drawText(button.getButtonText(), button.getLocalBounds(),
+               juce::Justification::centred, false);
 }
 
 // ============================================================================
@@ -161,6 +199,59 @@ DubSirenEditor::DubSirenEditor(DubSirenProcessor& p)
 
     // ── Apply our LookAndFeel globally ─────────────────────────────────────
     setLookAndFeel(&dubLAF);
+
+    // ── Trigger button ──────────────────────────────────────────────────────
+    triggerButton.setButtonText("TRIGGER");
+    triggerButton.onStateChange = [this]()
+    {
+        const bool down = (triggerButton.getState() == juce::Button::buttonDown);
+        if (down && !buttonIsDown_)
+        {
+            processorRef.triggerButtonOn();
+            buttonIsDown_ = true;
+        }
+        else if (!down && buttonIsDown_)
+        {
+            processorRef.triggerButtonOff();
+            buttonIsDown_ = false;
+        }
+    };
+    addChildComponent(triggerButton);  // kept but hidden — MIDI keyboard replaces it
+
+    // ── Sample selector + button ────────────────────────────────────────────
+    for (int i = 0; i < processorRef.getNumSamples(); ++i)
+        sampleSelectBox.addItem("SHOT " + juce::String(i + 1), i + 1);
+    sampleSelectBox.setSelectedId(1, juce::dontSendNotification);
+    sampleSelectBox.onChange = [this]()
+    {
+        processorRef.selectSample(sampleSelectBox.getSelectedId() - 1);
+    };
+    addAndMakeVisible(sampleSelectBox);
+
+    sampleButton.setButtonText("FIRE");
+    sampleButton.onClick = [this]() { processorRef.sampleButtonTrigger(); };
+    addAndMakeVisible(sampleButton);
+
+    // ── MIDI target selector ────────────────────────────────────────────────
+    midiTargetBox.addItem("VCO",    1);
+    midiTargetBox.addItem("SAMPLE", 2);
+    midiTargetBox.addItem("BOTH",   3);
+    midiTargetAttach = std::make_unique<ChoiceAttach>(params, "midiTarget", midiTargetBox);
+    addAndMakeVisible(midiTargetBox);
+
+    // ── Randomize button ────────────────────────────────────────────────────
+    randomizeButton.setButtonText("RANDOMIZE");
+    randomizeButton.onClick = [this]()
+    {
+        juce::Random rng;
+        for (auto* param : static_cast<juce::AudioProcessor&>(processorRef).getParameters())
+            param->setValueNotifyingHost(rng.nextFloat());
+        // Also pick a random sample and sync the UI selector
+        const int randomSample = rng.nextInt(processorRef.getNumSamples());
+        processorRef.selectSample(randomSample);
+        sampleSelectBox.setSelectedId(randomSample + 1, juce::sendNotification);
+    };
+    addAndMakeVisible(randomizeButton);
 
     // ── VCO ────────────────────────────────────────────────────────────────
     setupKnob(vcoRateSlider);    addAndMakeVisible(vcoRateSlider);
@@ -206,10 +297,10 @@ DubSirenEditor::DubSirenEditor(DubSirenProcessor& p)
     addAndMakeVisible(lfo1TargetLabel);
     addAndMakeVisible(lfo1WaveLabel);
 
-    lfo1TargetBox.addItem("None",           1);
-    lfo1TargetBox.addItem("VCO Rate",       2);
-    lfo1TargetBox.addItem("Delay Time",     3);
-    lfo1TargetBox.addItem("Delay Feedback", 4);
+    lfo1TargetBox.addItem("None",        1);
+    lfo1TargetBox.addItem("VCO Rate",    2);
+    lfo1TargetBox.addItem("Delay",       3);
+    lfo1TargetBox.addItem("Sample Rate", 4);
     addAndMakeVisible(lfo1TargetBox);
 
     lfo1WaveformBox.addItem("Sine",   1);
@@ -231,10 +322,11 @@ DubSirenEditor::DubSirenEditor(DubSirenProcessor& p)
     addAndMakeVisible(lfo2TargetLabel);
     addAndMakeVisible(lfo2WaveLabel);
 
-    lfo2TargetBox.addItem("None",          1);
-    lfo2TargetBox.addItem("LFO1 Rate",     2);
-    lfo2TargetBox.addItem("LFO1 Amount",   3);
-    lfo2TargetBox.addItem("Delay Wet/Dry", 4);
+    lfo2TargetBox.addItem("None",        1);
+    lfo2TargetBox.addItem("LFO1 Rate",   2);
+    lfo2TargetBox.addItem("LFO1 Amount", 3);
+    lfo2TargetBox.addItem("Delay",       4);
+    lfo2TargetBox.addItem("Sample Rate", 5);
     addAndMakeVisible(lfo2TargetBox);
 
     lfo2WaveformBox.addItem("Sine",   1);
@@ -242,6 +334,12 @@ DubSirenEditor::DubSirenEditor(DubSirenProcessor& p)
     lfo2WaveformBox.addItem("Square", 3);
     lfo2WaveformBox.addItem("S+H",    4);
     addAndMakeVisible(lfo2WaveformBox);
+
+    // ── Sample ──────────────────────────────────────────────────────────────
+    setupKnob(sampleLevelSlider); addAndMakeVisible(sampleLevelSlider);
+    setupKnob(sampleRateSlider);  addAndMakeVisible(sampleRateSlider);
+    setupLabel(sampleLevelLabel, "SMP LVL"); addAndMakeVisible(sampleLevelLabel);
+    setupLabel(sampleRateLabel,  "SMP SPD"); addAndMakeVisible(sampleRateLabel);
 
     // ── APVTS Attachments ──────────────────────────────────────────────────
     vcoRateAttach     = std::make_unique<SliderAttach>(params, "vcoRate",       vcoRateSlider);
@@ -263,6 +361,23 @@ DubSirenEditor::DubSirenEditor(DubSirenProcessor& p)
     lfo2TargetAttach = std::make_unique<ChoiceAttach>(params, "lfo2Target",   lfo2TargetBox);
     lfo2WaveAttach   = std::make_unique<ChoiceAttach>(params, "lfo2Waveform", lfo2WaveformBox);
 
+    sampleLevelAttach = std::make_unique<SliderAttach>(params, "sampleLevel",    sampleLevelSlider);
+    sampleRateAttach  = std::make_unique<SliderAttach>(params, "samplePlayRate", sampleRateSlider);
+
+    // ── Filter ─────────────────────────────────────────────────────────────
+    setupKnob(filterCutoffSlider);    addAndMakeVisible(filterCutoffSlider);
+    setupKnob(filterResonanceSlider); addAndMakeVisible(filterResonanceSlider);
+    setupKnob(filterDecaySlider);     addAndMakeVisible(filterDecaySlider);
+    setupLabel(filterCutoffLabel,    "SWEEP");
+    setupLabel(filterResonanceLabel, "RESO");
+    setupLabel(filterDecayLabel,     "DECAY");
+    addAndMakeVisible(filterCutoffLabel);
+    addAndMakeVisible(filterResonanceLabel);
+    addAndMakeVisible(filterDecayLabel);
+    filterCutoffAttach    = std::make_unique<SliderAttach>(params, "filterCutoff",     filterCutoffSlider);
+    filterResonanceAttach = std::make_unique<SliderAttach>(params, "filterResonance",  filterResonanceSlider);
+    filterDecayAttach     = std::make_unique<SliderAttach>(params, "filterDecay",      filterDecaySlider);
+
     setSize(720, 490);
 }
 
@@ -276,13 +391,13 @@ void DubSirenEditor::drawSection(juce::Graphics& g,
                                  juce::Rectangle<int> bounds,
                                  const juce::String& title) const
 {
-    // Section fill
-    g.setColour(juce::Colour(0xFF1E1B16));
+    // Section fill — semi-transparent so background image shows through
+    g.setColour(juce::Colour(0x401E1B16));
     g.fillRoundedRectangle(bounds.toFloat(), 4.0f);
 
-    // Engraved border
-    g.setColour(juce::Colour(0xFF2E2A1E));
-    g.drawRoundedRectangle(bounds.toFloat().reduced(0.5f), 4.0f, 1.0f);
+    // Engraved border — amber tinted
+    g.setColour(juce::Colour(0xBB4A3A18));
+    g.drawRoundedRectangle(bounds.toFloat().reduced(0.5f), 4.0f, 1.2f);
 
     // Section title — engraved look (shadow below, highlight above)
     if (title.isNotEmpty())
@@ -310,17 +425,29 @@ void DubSirenEditor::paint(juce::Graphics& g)
     const int W = getWidth();
     const int H = getHeight();
 
-    // ── Deep charcoal chassis background ─────────────────────────────────
+    // ── Background image ──────────────────────────────────────────────────
     {
-        juce::ColourGradient bg(
-            juce::Colour(0xFF161210), 0.0f,    0.0f,
-            juce::Colour(0xFF0E0C0A), (float)W, (float)H, false);
-        g.setGradientFill(bg);
-        g.fillAll();
+        auto img = juce::ImageCache::getFromMemory(
+            BinaryData::background_jfif, BinaryData::background_jfifSize);
+        if (img.isValid())
+        {
+            g.drawImage(img, 0, 0, W, H, 0, 0, img.getWidth(), img.getHeight());
+            // Dark overlay to keep UI legible over the photo
+            g.setColour(juce::Colour(0xBB0E0C0A));
+            g.fillAll();
+        }
+        else
+        {
+            juce::ColourGradient bg(
+                juce::Colour(0xFF161210), 0.0f,    0.0f,
+                juce::Colour(0xFF0E0C0A), (float)W, (float)H, false);
+            g.setGradientFill(bg);
+            g.fillAll();
+        }
     }
 
     // ── Subtle scan-line texture ──────────────────────────────────────────
-    g.setColour(juce::Colour(0x05000000));
+    g.setColour(juce::Colour(0x07000000));
     for (int y = 0; y < H; y += 2)
         g.drawHorizontalLine(y, 0.0f, (float)W);
 
@@ -357,8 +484,9 @@ void DubSirenEditor::paint(juce::Graphics& g)
     // ── Section boxes — drawn BEFORE child components ────────────────────
     drawSection(g, { 8,  44, 355, 195 }, "VCO");
     drawSection(g, { 368, 44, 344, 195 }, "DELAY");
-    drawSection(g, { 8,  246, 350, 235 }, "LFO  1  —  WOBBLE");
-    drawSection(g, { 364, 246, 348, 235 }, "LFO  2  —  SHAKE");
+    drawSection(g, { 8,   246, 355, 235 }, "FILTER  —  VCF  SWEEP");
+    drawSection(g, { 368, 246, 344, 114 }, "LFO  1  —  WOBBLE");
+    drawSection(g, { 368, 364, 344, 117 }, "LFO  2  —  SHAKE");
 
     // ── Corner screws ─────────────────────────────────────────────────────
     const int screwPositions[][2] = { {8,8},{W-14,8},{8,H-14},{W-14,H-14} };
@@ -376,19 +504,34 @@ void DubSirenEditor::paint(juce::Graphics& g)
 // ── resized ───────────────────────────────────────────────────────────────────
 void DubSirenEditor::resized()
 {
+    // ── Header buttons ─────────────────────────────────────────────────────
+    // MIDI-TARGET | SHOT-select | FIRE | RANDOMIZE
+    midiTargetBox  .setBounds(255, 8,  88, 24);
+    sampleSelectBox.setBounds(350, 8,  80, 24);
+    sampleButton   .setBounds(434, 8,  48, 24);
+    randomizeButton.setBounds(490, 8, 100, 24);
+
     const int knob   = 70;  // knob component size
     const int lh     = 14;  // label height
     const int comboH = 22;
     const int comboW = 100;
 
     // ──────────────────── VCO section (x=8..363, y=44..239) ────────────────
-    // 3 knobs: SIREN, LEVEL, PORTA  + 1 combo: WAVE
-    const int vcoY     = 65;   // knob top within section
-    const int vcoBase  = vcoY + knob + 2;  // label Y
+    // 3 knobs evenly spread, wave combobox centred below — all within border
+    const int vcoSectionX = 8;
+    const int vcoSectionW = 355;
+    // Three equal slots across the section (16px padding each side)
+    const int vcoSlotW = (vcoSectionW - 32) / 3;           // ~107
+    const int siren_cx = vcoSectionX + 16 + vcoSlotW / 2;  // slot-1 centre
+    const int level_cx = siren_cx + vcoSlotW;
+    const int porta_cx = level_cx + vcoSlotW;
 
-    const int siren_x  = 20;
-    const int level_x  = 110;
-    const int porta_x  = 200;
+    const int vcoY    = 65;
+    const int vcoBase = vcoY + knob + 2;
+
+    const int siren_x = siren_cx - knob / 2;
+    const int level_x = level_cx - knob / 2;
+    const int porta_x = porta_cx - knob / 2;
 
     vcoRateSlider   .setBounds(siren_x, vcoY, knob, knob);
     vcoLevelSlider  .setBounds(level_x, vcoY, knob, knob);
@@ -398,10 +541,11 @@ void DubSirenEditor::resized()
     vcoLevelLabel  .setBounds(level_x, vcoBase, knob, lh);
     portamentoLabel.setBounds(porta_x, vcoBase, knob, lh);
 
-    // Waveform combo below portamento label
-    const int vcoWaveY = vcoBase + lh + 4;
-    vcoWaveLabel   .setBounds(290, vcoY + 10, 62, lh);
-    vcoWaveformBox .setBounds(288, vcoY + 24, comboW - 12, comboH);
+    // Wave combo — centred below the three knobs
+    const int vcoWaveY  = vcoBase + lh + 8;
+    const int vcoWaveX  = vcoSectionX + (vcoSectionW - comboW) / 2;
+    vcoWaveLabel   .setBounds(vcoWaveX, vcoWaveY,          comboW, lh);
+    vcoWaveformBox .setBounds(vcoWaveX, vcoWaveY + lh + 2, comboW, comboH);
 
     // ──────────────────── DELAY section (x=368..712, y=44..239) ────────────
     const int dlyY    = 65;
@@ -419,50 +563,75 @@ void DubSirenEditor::resized()
     delayFeedbackLabel.setBounds(rep_x,  dlyBase, knob, lh);
     delayWetDryLabel  .setBounds(mix_x,  dlyBase, knob, lh);
 
-    // ──────────────────── LFO 1 section (x=8..358, y=246..481) ────────────
-    const int lfo1Y    = 270;
-    const int lfo1Base = lfo1Y + knob + 2;
+    // Sample knobs — lower row of DELAY section (small, 52px)
+    const int smpKnob = 52;
+    const int smpY    = dlyBase + lh + 8;
+    const int smpBase = smpY + smpKnob + 2;
+    sampleLevelSlider.setBounds(echo_x, smpY, smpKnob, smpKnob);
+    sampleRateSlider .setBounds(rep_x,  smpY, smpKnob, smpKnob);
+    sampleLevelLabel .setBounds(echo_x, smpBase, smpKnob + 10, lh);
+    sampleRateLabel  .setBounds(rep_x,  smpBase, smpKnob + 10, lh);
 
-    const int w1_x = 20;   // wobble rate
-    const int d1_x = 105;  // depth
+    // ──────────────────── FILTER section (x=8..363, y=246..481) ────────────
+    // 3 knobs evenly spread — same column as VCO
+    const int fltSectionX = 8;
+    const int fltSectionW = 355;
+    const int fltSlotW    = (fltSectionW - 32) / 3;
+    const int sweep_cx    = fltSectionX + 16 + fltSlotW / 2;
+    const int reso_cx     = sweep_cx + fltSlotW;
+    const int decay_cx    = reso_cx  + fltSlotW;
+    const int fltY        = 270;
+    const int fltBase     = fltY + knob + 2;
 
-    lfo1RateSlider  .setBounds(w1_x, lfo1Y, knob, knob);
-    lfo1AmountSlider.setBounds(d1_x, lfo1Y, knob, knob);
+    filterCutoffSlider   .setBounds(sweep_cx - knob / 2, fltY, knob, knob);
+    filterResonanceSlider.setBounds(reso_cx  - knob / 2, fltY, knob, knob);
+    filterDecaySlider    .setBounds(decay_cx - knob / 2, fltY, knob, knob);
 
-    lfo1RateLabel  .setBounds(w1_x, lfo1Base, knob, lh);
-    lfo1AmountLabel.setBounds(d1_x, lfo1Base, knob, lh);
+    filterCutoffLabel   .setBounds(sweep_cx - knob / 2, fltBase, knob, lh);
+    filterResonanceLabel.setBounds(reso_cx  - knob / 2, fltBase, knob, lh);
+    filterDecayLabel    .setBounds(decay_cx - knob / 2, fltBase, knob, lh);
 
-    // Target + waveform combos — stacked to the right of the knobs
-    const int lfo1ComboX    = 195;
-    const int lfo1TargetY   = lfo1Y + 12;
-    const int lfo1WaveY     = lfo1TargetY + comboH + 22;
+    // ──────────────────── LFO 1 section (x=368..712, y=246..360) ────────────
+    // Compact: 2 mini-knobs (60px) + 2 combos stacked to the right
+    const int lfoKnob  = 60;
+    const int lfoLh    = 12;
 
-    lfo1TargetLabel .setBounds(lfo1ComboX, lfo1TargetY - lh, comboW + 20, lh);
-    lfo1TargetBox   .setBounds(lfo1ComboX, lfo1TargetY,      comboW + 20, comboH);
+    const int lfo1Y    = 258;
+    const int lfo1Base = lfo1Y + lfoKnob + 2;
+    const int w1_x     = 382;
+    const int d1_x     = 454;
 
-    lfo1WaveLabel   .setBounds(lfo1ComboX, lfo1WaveY - lh,   comboW + 20, lh);
-    lfo1WaveformBox .setBounds(lfo1ComboX, lfo1WaveY,        comboW + 20, comboH);
+    lfo1RateSlider  .setBounds(w1_x, lfo1Y, lfoKnob, lfoKnob);
+    lfo1AmountSlider.setBounds(d1_x, lfo1Y, lfoKnob, lfoKnob);
+    lfo1RateLabel  .setBounds(w1_x, lfo1Base, lfoKnob, lfoLh);
+    lfo1AmountLabel.setBounds(d1_x, lfo1Base, lfoKnob, lfoLh);
 
-    // ──────────────────── LFO 2 section (x=364..712, y=246..481) ──────────
-    const int lfo2Y    = 270;
-    const int lfo2Base = lfo2Y + knob + 2;
+    const int lfo1ComboX  = 526;
+    const int lfo1Combo1Y = lfo1Y;
+    const int lfo1Combo2Y = lfo1Combo1Y + lh + comboH + 6;
 
-    const int w2_x = 376;  // shake rate
-    const int d2_x = 461;  // power
+    lfo1TargetLabel .setBounds(lfo1ComboX, lfo1Combo1Y,        comboW + 10, lh);
+    lfo1TargetBox   .setBounds(lfo1ComboX, lfo1Combo1Y + lh,   comboW + 10, comboH);
+    lfo1WaveLabel   .setBounds(lfo1ComboX, lfo1Combo2Y,        comboW + 10, lh);
+    lfo1WaveformBox .setBounds(lfo1ComboX, lfo1Combo2Y + lh,   comboW + 10, comboH);
 
-    lfo2RateSlider  .setBounds(w2_x, lfo2Y, knob, knob);
-    lfo2AmountSlider.setBounds(d2_x, lfo2Y, knob, knob);
+    // ──────────────────── LFO 2 section (x=368..712, y=364..481) ────────────
+    const int lfo2Y    = 376;
+    const int lfo2Base = lfo2Y + lfoKnob + 2;
+    const int w2_x     = 382;
+    const int d2_x     = 454;
 
-    lfo2RateLabel  .setBounds(w2_x, lfo2Base, knob, lh);
-    lfo2AmountLabel.setBounds(d2_x, lfo2Base, knob, lh);
+    lfo2RateSlider  .setBounds(w2_x, lfo2Y, lfoKnob, lfoKnob);
+    lfo2AmountSlider.setBounds(d2_x, lfo2Y, lfoKnob, lfoKnob);
+    lfo2RateLabel  .setBounds(w2_x, lfo2Base, lfoKnob, lfoLh);
+    lfo2AmountLabel.setBounds(d2_x, lfo2Base, lfoKnob, lfoLh);
 
-    const int lfo2ComboX  = 551;
-    const int lfo2TargetY = lfo2Y + 12;
-    const int lfo2WaveY   = lfo2TargetY + comboH + 22;
+    const int lfo2ComboX  = 526;
+    const int lfo2Combo1Y = lfo2Y;
+    const int lfo2Combo2Y = lfo2Combo1Y + lh + comboH + 6;
 
-    lfo2TargetLabel .setBounds(lfo2ComboX, lfo2TargetY - lh, comboW + 16, lh);
-    lfo2TargetBox   .setBounds(lfo2ComboX, lfo2TargetY,      comboW + 16, comboH);
-
-    lfo2WaveLabel   .setBounds(lfo2ComboX, lfo2WaveY - lh,   comboW + 16, lh);
-    lfo2WaveformBox .setBounds(lfo2ComboX, lfo2WaveY,        comboW + 16, comboH);
+    lfo2TargetLabel .setBounds(lfo2ComboX, lfo2Combo1Y,        comboW + 10, lh);
+    lfo2TargetBox   .setBounds(lfo2ComboX, lfo2Combo1Y + lh,   comboW + 10, comboH);
+    lfo2WaveLabel   .setBounds(lfo2ComboX, lfo2Combo2Y,        comboW + 10, lh);
+    lfo2WaveformBox .setBounds(lfo2ComboX, lfo2Combo2Y + lh,   comboW + 10, comboH);
 }
